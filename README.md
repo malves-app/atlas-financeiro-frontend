@@ -28,8 +28,8 @@ O que tem:
 ## Configurar o Supabase (uma vez)
 
 1. **Criar as tabelas**: rode os arquivos de `supabase/migrations/` em ordem. Com a CLI do Supabase:
-   `supabase migration up` (banco local) ou `supabase link --project-ref saztxindzhgpjmffkvro` + `supabase db push`
-   (produção). Sem a CLI: no painel, **SQL Editor → New query**, cole cada arquivo na ordem dos nomes e clique em **Run**.
+   `supabase migration up` (banco local) ou `supabase link --project-ref saztxindzhgpjmffkvro` + `supabase db push --remote`
+   (produção; na CLI v3, sem `--remote` os comandos de banco agem no Supabase local). Sem a CLI: no painel, **SQL Editor → New query**, cole cada arquivo na ordem dos nomes e clique em **Run**.
 2. **Link de confirmação do cadastro**: em **Authentication → URL Configuration**, coloque o endereço do site em
    **Site URL** e adicione `http://localhost:3000/auth/callback` (e `https://SEU-SITE/auth/callback` em produção) em
    **Redirect URLs**. No Supabase local (`supabase start`) a confirmação por e-mail já vem desligada e os e-mails caem

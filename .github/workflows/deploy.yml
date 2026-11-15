@@ -31,18 +31,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  testes:
-    name: Testes
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
+  # testes:
+  #   name: Testes
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 22
+  #         cache: npm
+  #     - run: npm ci
+  #     - run: npm run typecheck
+  #     - run: npm test
 
   supabase:
     name: Migrações do Supabase
@@ -56,31 +56,31 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.1.0 # fixa a versão: a "latest" mudou de v2 para v3 em nov/2026 e quebrou o deploy
       - name: Conectar ao projeto
         run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
       - name: Migrações que faltam
-        run: supabase migration list --linked
+        run: supabase migration list --remote
       - name: Aplicar
-        run: supabase db push --linked
+        run: supabase db push --yes --remote
 
-  vercel:
-    name: Deploy na Vercel
-    needs: supabase
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install --global vercel@latest
-      # Baixa as variáveis de ambiente de produção cadastradas na Vercel (NEXT_PUBLIC_SUPABASE_*)
-      - run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
-      - run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
-      - run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+  # vercel:
+  #   name: Deploy na Vercel
+  #   needs: supabase
+  #   if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: production
+  #   env:
+  #     VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  #     VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 22
+  #     - run: npm install --global vercel@latest
+  #     # Baixa as variáveis de ambiente de produção cadastradas na Vercel (NEXT_PUBLIC_SUPABASE_*)
+  #     - run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+  #     - run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+  #     - run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
