@@ -68,6 +68,28 @@ Prefira um repositório **privado** no GitHub: os testes usam uma cópia da aba 
 trocados por "Pessoa A" e "Pessoa B"). Depois de publicar, no Supabase vá em **Authentication → URL Configuration** e coloque o endereço do site em
 **Site URL**.
 
+### Publicação automática (GitHub Actions)
+
+Com `.github/workflows/deploy.yml`, todo push na `main` faz, nesta ordem: testes → migrações novas no Supabase de produção
+(`supabase db push`) → deploy de produção na Vercel. Se um passo falha, os seguintes não rodam. Em pull requests só os
+testes rodam. O `vercel.json` desliga o deploy automático da Vercel na `main` (quem publica é o workflow, depois do
+banco); outras branches continuam ganhando prévia.
+
+Configurar uma vez:
+
+1. Crie o projeto na Vercel (importando o repositório) com as duas variáveis `NEXT_PUBLIC_SUPABASE_*`.
+2. Na pasta do projeto rode `npx vercel link` e abra `.vercel/project.json` para pegar `orgId` e `projectId`.
+3. No GitHub, em **Settings → Secrets and variables → Actions → New repository secret**, crie:
+   - `SUPABASE_ACCESS_TOKEN`: em supabase.com/dashboard/account/tokens → **Generate new token**
+   - `SUPABASE_DB_PASSWORD`: a senha do banco (Project Settings → Database)
+   - `SUPABASE_PROJECT_ID`: `saztxindzhgpjmffkvro`
+   - `VERCEL_TOKEN`: em vercel.com/account/tokens → **Create**
+   - `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID`: do `.vercel/project.json`
+4. Faça um push na `main` (ou **Actions → Deploy → Run workflow**) e acompanhe na aba **Actions**.
+
+Mudança no banco = um arquivo novo em `supabase/migrations/` (ex.: `supabase migration new nome`). Nunca edite uma
+migração que já foi aplicada; crie outra.
+
 No iPhone: Safari → Compartilhar → **Adicionar à Tela de Início**. No Android: Chrome → menu → **Adicionar à tela inicial**.
 
 ## Como a planilha vira o site

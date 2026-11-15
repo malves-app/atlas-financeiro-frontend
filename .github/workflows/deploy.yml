@@ -1,0 +1,86 @@
+# Publicação automática do AtlasFinanceiro.
+#
+# Em todo push na main:
+#   1. testes      -> tipos (tsc) e npm test (banco, importador, estatísticas)
+#   2. supabase    -> aplica as migrações novas de supabase/migrations no projeto de produção
+#   3. vercel      -> build e deploy de produção (só depois do banco estar atualizado)
+# Se um passo falhar, os seguintes não rodam: o site nunca vai para o ar com o banco desatualizado.
+#
+# Em pull requests, só os testes rodam (e a Vercel cria a prévia do PR sozinha).
+#
+# Segredos necessários (GitHub -> Settings -> Secrets and variables -> Actions):
+#   SUPABASE_ACCESS_TOKEN  token pessoal do Supabase (supabase.com/dashboard/account/tokens)
+#   SUPABASE_DB_PASSWORD   senha do banco do projeto de produção
+#   SUPABASE_PROJECT_ID    id do projeto (o "saztx..." da URL)
+#   VERCEL_TOKEN           token da Vercel (vercel.com/account/tokens)
+#   VERCEL_ORG_ID          "orgId" do arquivo .vercel/project.json (depois de `npx vercel link`)
+#   VERCEL_PROJECT_ID      "projectId" do mesmo arquivo
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # botão "Run workflow" para publicar na mão
+
+# Um deploy de cada vez; um push novo espera o anterior terminar
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  testes:
+    name: Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  supabase:
+    name: Migrações do Supabase
+    needs: testes
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Conectar ao projeto
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}" --password "$SUPABASE_DB_PASSWORD"
+      - name: Migrações que faltam
+        run: supabase migration list --linked
+      - name: Aplicar
+        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+
+  vercel:
+    name: Deploy na Vercel
+    needs: supabase
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global vercel@latest
+      # Baixa as variáveis de ambiente de produção cadastradas na Vercel (NEXT_PUBLIC_SUPABASE_*)
+      - run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+      - run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      - run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
