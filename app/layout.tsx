@@ -1,35 +1,27 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/figtree/wght.css";
+import "@fontsource-variable/bricolage-grotesque/standard.css";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Atlas Financeiro",
-  description:
-    "Navegue pelo seu mundo financeiro com clareza e controle. Transforme a forma como você organiza suas finanças.",
+  title: "AtlasFinanceiro",
+  description: "Organização financeira: gastos do mês, fixos, cartão e estatísticas",
+  appleWebApp: { capable: true, title: "AtlasFinanceiro", statusBarStyle: "default" },
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: "#eef1f5",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    <html lang="pt-BR" className="h-full antialiased">
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

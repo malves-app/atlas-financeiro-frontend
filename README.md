@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AtlasFinanceiro
 
-## Getting Started
+Site de organização financeira feito a partir de uma planilha mensal do Google, em Next.js + Tailwind, com o
+**Supabase** como banco de dados e login. Ele substitui a planilha: você lança gastos e entradas pelo celular ou pelo
+navegador e o site faz as contas que a planilha fazia.
 
-First, run the development server:
+O que tem:
+
+- **Painel do mês**: saldo (entradas menos gastos), quanto da renda já foi gasto, contas a pagar com botão "Paguei",
+  conta corrente × cartão, para onde foi o dinheiro e gastos por categoria.
+- **Lançar** (botão + no meio da barra): valor, descrição, cartão ou conta, categoria e data. Ao digitar um nome que você
+  já usou (Uber, Assaí...), o site sugere a categoria e a forma de pagamento de antes.
+- **Lançamentos**: lista do mês por dia, com busca e filtros (dia a dia, fixos, cartão, conta, sem categoria). Para
+  meses com gastos sem categoria (junho e novembro na planilha), há o botão "Preencher pelo histórico".
+- **Fixos**: contas do mês com "pago?", assinaturas e parcelas do cartão com a contagem (ex.: 9/10) e o mês em que
+  terminam. Todo mês novo é montado sozinho a partir dos fixos cadastrados; parcelas acabam na última.
+- **Estatísticas**: abre no ano atual (também dá para escolher outro ano ou os últimos 12 meses). Saldo do período,
+  quanto você guardou, gráficos de entradas × gastos e do saldo de cada mês, fixos × dia a dia, categorias, formas de
+  pagamento, onde você mais gasta, maiores gastos, dia da semana, de onde veio o dinheiro e uma análise em texto
+  (média, mediana, desvio padrão, tendência, mês mais caro e projeção do ano). Toque ou passe o mouse nas colunas
+  para ver os valores; a tabela mês a mês fica no fim da página.
+- **Ajustes**: formas de pagamento (o "Tipo" da planilha: Conta Corrente, Crédito, Pix, outros cartões, cada cartão com
+  seu dia de fechamento), categorias (com valor previsto por mês, opcional) e importação da planilha.
+- **Criar conta**: tela de cadastro com e-mail e senha. Cada conta tem os próprios dados.
+- Funciona no celular (barra embaixo; Ajustes fica na engrenagem do Painel) e no computador (menu lateral), sempre em
+  uma coluna. Ao ver outro mês, o botão "Voltar para novembro" leva de volta ao mês atual.
+
+## Configurar o Supabase (uma vez)
+
+1. **Criar as tabelas**: rode os arquivos de `supabase/migrations/` em ordem. Com a CLI do Supabase:
+   `supabase migration up` (banco local) ou `supabase link --project-ref saztxindzhgpjmffkvro` + `supabase db push`
+   (produção). Sem a CLI: no painel, **SQL Editor → New query**, cole cada arquivo na ordem dos nomes e clique em **Run**.
+2. **Link de confirmação do cadastro**: em **Authentication → URL Configuration**, coloque o endereço do site em
+   **Site URL** e adicione `http://localhost:3000/auth/callback` (e `https://SEU-SITE/auth/callback` em produção) em
+   **Redirect URLs**. No Supabase local (`supabase start`) a confirmação por e-mail já vem desligada e os e-mails caem
+   no Mailpit (http://127.0.0.1:54324).
+3. **Criar sua conta**: pela tela **Criar conta** do site, ou no painel em **Authentication → Users → Add user**
+   (marque **Auto Confirm User**). Se não quiser que outras pessoas criem conta depois, desligue
+   **Allow new users to sign up** em **Authentication → Sign In / Providers**.
+
+Cada linha do banco pertence a um usuário e a segurança por linha (RLS) garante que cada pessoa só vê os próprios dados.
+
+## Rodar no seu computador
+
+Precisa do [Node.js](https://nodejs.org) 20 ou mais novo. O `.env.example` já tem a URL e a chave pública do seu projeto
+Supabase; copie para `.env.local`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
+npm install
+npm run dev        # abre em http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Entre com o usuário criado no passo 2 e vá em **Ajustes → Importar planilha**, cole o link da planilha (ela precisa estar
+compartilhada como "qualquer pessoa com o link pode ver"). Para abrir no celular na mesma rede Wi‑Fi, use o endereço "Network" que o
+`npm run dev` mostra.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Publicar (Vercel)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Importe o repositório na Vercel e crie estas variáveis de ambiente (as mesmas do `.env.local`):
 
-## Learn More
+```
+NEXT_PUBLIC_SUPABASE_URL=https://saztxindzhgpjmffkvro.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
 
-To learn more about Next.js, take a look at the following resources:
+Prefira um repositório **privado** no GitHub: os testes usam uma cópia da aba de novembro (com os nomes do casal
+trocados por "Pessoa A" e "Pessoa B"). Depois de publicar, no Supabase vá em **Authentication → URL Configuration** e coloque o endereço do site em
+**Site URL**.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+No iPhone: Safari → Compartilhar → **Adicionar à Tela de Início**. No Android: Chrome → menu → **Adicionar à tela inicial**.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Como a planilha vira o site
 
-## Deploy on Vercel
+| Na planilha (cada aba de mês)        | No site                                       |
+| ------------------------------------ | --------------------------------------------- |
+| Fixos (conta corrente) + "Pago?"     | Fixos → Contas do mês                         |
+| Cartão de Crédito, "Parcelas" 05/10  | Fixos → Assinaturas e Parcelas no cartão      |
+| Gastos do Mês                        | Lançamentos (dia a dia)                       |
+| Entradas                             | Lançamentos → Entradas                        |
+| Saídas: Conta Corrente, Crédito      | Formas de pagamento (Ajustes), configuráveis  |
+| Tipo de cada gasto                   | Forma de pagamento do lançamento              |
+| Datas -31, -30 (mês anterior)        | Compras do cartão após o fechamento (dia 25)  |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Os fixos de **novembro** viram os fixos que o site repete nos meses seguintes (as parcelas seguem até a última, inclusive
+em 2027). O importador confere os totais de cada mês (gastos, fixos, cartão, entradas, saldo e cada linha de Saídas) com
+os que a própria planilha mostra.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Comandos
+
+- `npm run dev`: desenvolvimento
+- `npm test`: testa o SQL do Supabase (tabelas, RLS, funções), o importador com uma cópia da aba Novembro e os
+  cálculos das estatísticas, num Postgres local que imita o Supabase (não precisa de internet)
+- `npm run build && npm start`: versão de produção
+
+## Estrutura
+
+- `app/`: telas (painel, novo, lançamentos, fixos, estatísticas, ajustes, login) e `actions.ts` (salvar, excluir, importar, entrar)
+- `proxy.ts`: renova a sessão do Supabase e manda para o login quem não entrou
+- `lib/supabase/`: clientes do Supabase para o servidor
+- `lib/data.ts`: consultas e regras (totais do mês, fixos recorrentes, parcelas)
+- `lib/stats.ts`: estatísticas do ano ou dos últimos 12 meses (médias, tendência, rankings)
+- `lib/import/`: leitura das abas da planilha e carga no banco
+- `supabase/migrations/`: tabelas, regras de segurança e funções do banco

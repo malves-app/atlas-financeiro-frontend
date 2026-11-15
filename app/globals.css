@@ -1,70 +1,122 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ink: #172033;
+  --color-ink-2: #4a5470;
+  --color-ink-3: #7a839a;
+  --color-paper: #eef1f5;
+  --color-surface: #ffffff;
+  --color-line: #dce1ea;
+  --color-brand: #0b7a6b;
+  --color-brand-soft: #e3f2ef;
+  --color-conta: #3355cc;
+  --color-cartao: #e39a2d;
+  --color-danger: #c33d4b;
+  --color-danger-soft: #fbe9eb;
+
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Números de dinheiro: largura fixa para alinhar colunas */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .display {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 96;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Inputs com 16px evitam o zoom automático do iPhone */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-/* Animações personalizadas */
-@keyframes fade-in {
+@keyframes toast-in {
   from {
+    transform: translateY(12px);
     opacity: 0;
-    transform: translateY(20px);
   }
   to {
+    transform: none;
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-@keyframes glow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.5));
-  }
-  50% {
-    filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.8));
-  }
+.toast {
+  animation: toast-in 180ms ease-out;
 }
 
-@keyframes pulse-slow {
-  0%,
-  100% {
-    opacity: 0.3;
+/* Janela de lançar: sobe de baixo no celular, aparece no centro no computador */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
   }
-  50% {
-    opacity: 0.6;
+  to {
+    transform: none;
   }
 }
-
-.animate-fade-in {
-  animation: fade-in 1s ease-out;
+@keyframes dialog-in {
+  from {
+    transform: translateY(8px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
-
-.animate-glow {
-  animation: glow 2s ease-in-out infinite;
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
 }
-
-.animate-pulse-slow {
-  animation: pulse-slow 3s ease-in-out infinite;
+.fm-sheet[open] {
+  animation: sheet-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fm-sheet[open]::backdrop {
+  animation: backdrop-in 200ms ease-out;
+}
+@media (min-width: 1024px) {
+  .fm-sheet[open] {
+    animation: dialog-in 180ms ease-out;
+  }
 }
