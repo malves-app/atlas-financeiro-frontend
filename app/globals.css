@@ -120,3 +120,109 @@
     animation: dialog-in 180ms ease-out;
   }
 }
+
+/* Abertura (components/SplashScreen.tsx): o globo aparece, o aro se desenha, os
+   gomos sobem como barras e o nome surge. ~1,7s de animação. */
+.atlas-splash {
+  display: none;
+}
+.atlas-splash[data-show="1"],
+.atlas-splash[data-show="out"] {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  transition: opacity 400ms ease;
+}
+.atlas-splash[data-show="out"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.atlas-splash .sp-art {
+  width: min(40vw, 168px);
+  height: auto;
+  overflow: visible;
+  animation: sp-pop 700ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+.sp-ring {
+  animation: sp-draw 720ms 80ms cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+.sp-empty {
+  animation: sp-fade 420ms 280ms ease-out both;
+}
+.sp-bar {
+  animation: sp-bar 460ms 620ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.sp-bar-1 {
+  animation-delay: 720ms;
+}
+.sp-bar-2 {
+  animation-delay: 820ms;
+}
+.sp-bar-3 {
+  animation: sp-bar 640ms 920ms cubic-bezier(0.34, 1.45, 0.64, 1) both;
+}
+.sp-echo {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sp-echo 760ms 1380ms ease-out both;
+}
+.sp-word {
+  animation: sp-rise 520ms 1080ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes sp-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+}
+@keyframes sp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes sp-draw {
+  from {
+    stroke-dashoffset: 216;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sp-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sp-bar {
+  from {
+    transform: translateY(58px);
+  }
+}
+@keyframes sp-echo {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  1% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.32);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-splash,
+  .atlas-splash * {
+    animation: none !important;
+  }
+}

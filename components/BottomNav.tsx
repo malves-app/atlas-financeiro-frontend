@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { Logo } from "@/components/Logo";
 
 const STATS_ICON = "M4 20h16M7 16v-5M12 16V6M17 16v-8";
 
@@ -76,8 +77,8 @@ export function SideNav({ email }: { email: string | null }) {
       aria-label="Navegação principal"
       className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface px-4 py-6 lg:flex"
     >
-      <Link href="/" className="display px-3 text-[22px] font-bold tracking-tight">
-        Atlas<span className="text-brand">Financeiro</span>
+      <Link href="/" className="px-3 text-[22px]">
+        <Logo />
       </Link>
       <Link
         href={primary.href}

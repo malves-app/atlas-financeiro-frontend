@@ -13,6 +13,7 @@ import {
   todayISO,
 } from "@/lib/format";
 import { readParams, type SearchParams } from "@/lib/page";
+import { Logo } from "@/components/Logo";
 import {
   BackToCurrentMonth,
   Chevron,
@@ -159,9 +160,7 @@ export default async function Painel({
     <>
       <header className="px-4 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:flex lg:items-center lg:justify-between lg:px-0 lg:pt-2 lg:pb-3">
         <div className="flex items-center justify-between lg:hidden">
-          <span className="display text-[19px] font-bold tracking-tight">
-            Atlas<span className="text-brand">Financeiro</span>
-          </span>
+          <Logo className="text-[19px]" />
           <div className="-mr-1.5 flex items-center">
             <ShareReport report={report} variant="icon" />
             <Link
