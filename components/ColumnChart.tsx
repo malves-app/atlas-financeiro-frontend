@@ -271,10 +271,15 @@ export function ColumnChart({
         )}
       </div>
 
-      <div className="mt-1.5 ml-12 flex" aria-hidden>
+      {/* Rótulo centrado na coluna, podendo passar da largura dela (períodos longos mostram só alguns) */}
+      <div className="mt-1.5 ml-12 flex h-4" aria-hidden>
         {labels.map((l, i) => (
-          <span key={i} className={`flex-1 text-center text-[11px] ${active === i ? "font-semibold text-ink" : "text-ink-3"}`}>
-            {l}
+          <span key={i} className="relative min-w-0 flex-1">
+            <span
+              className={`absolute left-1/2 -translate-x-1/2 text-[11px] whitespace-nowrap ${active === i ? "font-semibold text-ink" : "text-ink-3"}`}
+            >
+              {l}
+            </span>
           </span>
         ))}
       </div>

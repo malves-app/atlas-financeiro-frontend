@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { loadLookups, loadStats, type Period, type Stats } from "@/lib/stats";
-import { currentMonth, formatBRL, formatPercent, formatShortDate, monthLabel, monthShort } from "@/lib/format";
+import { isDefaultPeriod, loadLookups, loadStats, resolvePeriod, type Stats } from "@/lib/stats";
+import { currentMonth, formatBRL, formatPercent, formatShortDate, monthLabel, monthPhrase, monthShort } from "@/lib/format";
 import type { SearchParams } from "@/lib/page";
 import { EmptyState, EntryIcon, Money, Panel, SectionTitle, StackedBar } from "@/components/ui";
 import { ColumnChart } from "@/components/ColumnChart";
+import { PeriodFilter } from "@/components/PeriodFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -26,32 +27,37 @@ export default async function Estatisticas({ searchParams }: { searchParams: Sea
     return Array.isArray(v) ? v[0] : v;
   };
   const now = currentMonth();
-  const nowYear = Number(now.slice(0, 4));
-  const anoParam = Number(get("ano"));
-  const period: Period =
-    get("p") === "12m"
-      ? { kind: "12m" }
-      : { kind: "ano", year: Number.isInteger(anoParam) && anoParam >= 2000 && anoParam <= nowYear ? anoParam : nowYear };
+  const period = resolvePeriod(get("de"), get("ate"), now);
 
   const [stats, lookups] = await Promise.all([loadStats(period), loadLookups()]);
   const { months, monthly, totals, spend } = stats;
 
-  const selfHref = period.kind === "12m" ? "/estatisticas?p=12m" : period.year === nowYear ? "/estatisticas" : `/estatisticas?ano=${period.year}`;
+  const selfHref = isDefaultPeriod(period, now) ? "/estatisticas" : `/estatisticas?de=${period.from}&ate=${period.to}`;
   const back = encodeURIComponent(selfHref);
-  const years = Array.from({ length: nowYear - Math.min(lookups.firstYear, period.kind === "ano" ? period.year : nowYear) + 1 }, (_, i) => nowYear - i);
-
-  const periodName = period.kind === "12m" ? "dos últimos 12 meses" : `de ${period.year}`;
-  const rangeText = months.length
-    ? months.length === 1
-      ? monthLabel(months[0])
-      : months[0].slice(0, 4) === months[months.length - 1].slice(0, 4)
-        ? `${monthLabel(months[0], false)} a ${lower(months[months.length - 1])} de ${months[0].slice(0, 4)}`
-        : `${monthLabel(months[0])} a ${monthLabel(months[months.length - 1]).toLowerCase()}`
-    : "";
+  const fromYear = period.from.slice(0, 4);
+  const toYear = period.to.slice(0, 4);
+  const multiYear = fromYear !== toYear;
+  // Ano inteiro (ou o ano atual até agora) vira "de 2026"; o resto é "do período"
+  const wholeYear = !multiYear && period.from.endsWith("-01") && (period.to.endsWith("-12") || period.to === now);
+  const periodName = wholeYear ? `de ${fromYear}` : "do período";
+  const span = (a: string, b: string) =>
+    a === b
+      ? monthLabel(a)
+      : a.slice(0, 4) === b.slice(0, 4)
+        ? `${monthLabel(a, false)} a ${lower(b)} de ${a.slice(0, 4)}`
+        : `${monthLabel(a)} a ${monthLabel(b).toLowerCase()}`;
+  const rangeText = months.length ? span(months[0], months[months.length - 1]) : "";
+  const emptyText = wholeYear ? `em ${fromYear}` : period.from === period.to ? `em ${monthPhrase(period.from)}` : `de ${span(period.from, period.to).toLowerCase()}`;
   const hasPartial = monthly.some((r) => r.partial);
   const empty = totals.gastos === 0 && totals.entradas === 0;
 
-  const labels = months.map((m) => monthShort(m));
+  // Até 12 meses, todos os rótulos; em períodos longos, um a cada trimestre/semestre/ano, com o ano no lugar de janeiro
+  const step = months.length <= 12 ? 1 : months.length <= 36 ? 3 : months.length <= 72 ? 6 : 12;
+  const labels = months.map((m) => {
+    const mi = Number(m.slice(5, 7)) - 1;
+    if (mi % step !== 0) return "";
+    return step > 1 && multiYear && mi === 0 ? m.slice(0, 4) : monthShort(m);
+  });
   const titles = months.map((m) => monthLabel(m));
   const partial = monthly.map((r) => r.partial);
 
@@ -61,37 +67,12 @@ export default async function Estatisticas({ searchParams }: { searchParams: Sea
         <h1 className="display text-[22px] font-bold tracking-tight lg:text-[28px]">Estatísticas</h1>
       </header>
 
-      {/* Período: um atalho por ano e os últimos 12 meses */}
-      <nav aria-label="Período" className="mb-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] pointer-fine:flex-wrap lg:px-0">
-        {years.map((y) => {
-          const on = period.kind === "ano" && period.year === y;
-          return (
-            <Link
-              key={y}
-              href={y === nowYear ? "/estatisticas" : `/estatisticas?ano=${y}`}
-              aria-current={on ? "page" : undefined}
-              scroll={false}
-              className={`num shrink-0 rounded-full px-4 py-2 text-[14px] font-semibold ${on ? "bg-ink text-white" : "bg-surface text-ink-2 ring-1 ring-line hover:bg-paper"}`}
-            >
-              {y}
-            </Link>
-          );
-        })}
-        <Link
-          href="/estatisticas?p=12m"
-          aria-current={period.kind === "12m" ? "page" : undefined}
-          scroll={false}
-          className={`shrink-0 rounded-full px-4 py-2 text-[14px] font-semibold ${
-            period.kind === "12m" ? "bg-ink text-white" : "bg-surface text-ink-2 ring-1 ring-line hover:bg-paper"
-          }`}
-        >
-          Últimos 12 meses
-        </Link>
-      </nav>
+      {/* Período: de um mês a outro (padrão: o ano atual) */}
+      <PeriodFilter key={`${period.from}:${period.to}`} from={period.from} to={period.to} firstMonth={lookups.firstMonth} now={now} />
 
       {empty ? (
         <Panel>
-          <EmptyState>Nenhum lançamento {period.kind === "12m" ? "nos últimos 12 meses" : `em ${period.year}`}.</EmptyState>
+          <EmptyState>Nenhum lançamento {emptyText}.</EmptyState>
         </Panel>
       ) : (
         <div className="flex flex-col gap-3 lg:gap-4">
@@ -176,9 +157,6 @@ export default async function Estatisticas({ searchParams }: { searchParams: Sea
               extra={[{ label: "acumulado", values: stats.cumulative }]}
             />
           </Panel>
-
-          {/* Análise em texto */}
-          <Analysis stats={stats} period={period} nowYear={nowYear} lookups={lookups} />
 
           {/* Composição mês a mês */}
           <Composition stats={stats} labels={labels} titles={titles} partial={partial} />
@@ -292,7 +270,7 @@ export default async function Estatisticas({ searchParams }: { searchParams: Sea
                     {monthly.map((r, i) => (
                       <tr key={r.month} className="border-t border-line">
                         <td className="px-2 py-2">
-                          {monthLabel(r.month, period.kind === "12m")}
+                          {monthLabel(r.month, multiYear)}
                           {r.partial && <span className="text-ink-3"> (parcial)</span>}
                         </td>
                         <td className="px-2 py-2 text-right">
@@ -342,159 +320,6 @@ function Kpi({ label, value, note, alert = false }: { label: string; value: Reac
       <div className={`mt-1 text-[19px] leading-tight font-semibold ${alert ? "text-danger" : ""}`}>{value}</div>
       {note && <div className="mt-0.5 truncate text-[12px] text-ink-3">{note}</div>}
     </div>
-  );
-}
-
-function Analysis({
-  stats,
-  period,
-  nowYear,
-  lookups,
-}: {
-  stats: Stats;
-  period: Period;
-  nowYear: number;
-  lookups: Awaited<ReturnType<typeof loadLookups>>;
-}) {
-  const { spend, totals, monthly } = stats;
-  const items: React.ReactNode[] = [];
-  const B = ({ children }: { children: React.ReactNode }) => <strong className="font-semibold text-ink">{children}</strong>;
-  const partialRow = monthly.find((r) => r.partial);
-  const closedCount = monthly.filter((r) => !r.partial).length;
-
-  if (spend.basis > 0) {
-    items.push(
-      <>
-        Você gastou em média <B>{formatBRL(spend.mean)} por mês</B>
-        {spend.basis > 1 && <> (mediana de {formatBRL(spend.median)})</>}.
-        {partialRow && closedCount >= 2 && <> {monthLabel(partialRow.month, false)} ainda está em andamento e fica de fora das médias.</>}
-      </>,
-    );
-  }
-
-  if (spend.basis >= 3 && spend.mean > 0) {
-    const cv = spend.stdev / spend.mean;
-    items.push(
-      cv < 0.1 ? (
-        <>
-          Os gastos são <B>bem estáveis</B>: variam cerca de {formatBRL(spend.stdev)} de um mês para outro.
-        </>
-      ) : cv < 0.25 ? (
-        <>
-          Os gastos <B>variam um pouco</B>: o desvio padrão é de {formatBRL(spend.stdev)}, {formatPercent(cv)} da média.
-        </>
-      ) : (
-        <>
-          Os gastos <B>oscilam bastante</B>: o desvio padrão é de {formatBRL(spend.stdev)}, {formatPercent(cv)} da média.
-        </>
-      ),
-    );
-    const t = spend.trendPct;
-    items.push(
-      Math.abs(t) < 0.02 ? (
-        <>
-          <B>Sem tendência clara</B>: os gastos ficaram no mesmo patamar ao longo do período.
-        </>
-      ) : t > 0 ? (
-        <>
-          <B>Tendência de alta</B>: pela linha de tendência, os gastos sobem cerca de {formatBRL(spend.trendPerMonth)} por mês ({formatPercent(t, 1)} da
-          média).
-        </>
-      ) : (
-        <>
-          <B>Tendência de queda</B>: pela linha de tendência, os gastos caem cerca de {formatBRL(-spend.trendPerMonth)} por mês ({formatPercent(-t, 1)} da
-          média).
-        </>
-      ),
-    );
-  }
-
-  if (spend.max && spend.min && spend.max.month !== spend.min.month && spend.mean > 0) {
-    items.push(
-      <>
-        O mês mais caro foi <B>{lower(spend.max.month)}</B> ({formatBRL(spend.max.value)}, {formatPercent(spend.max.value / spend.mean - 1)} acima da média) e o
-        mais barato, <B>{lower(spend.min.month)}</B> ({formatBRL(spend.min.value)}).
-      </>,
-    );
-  }
-
-  if (totals.savingsRate != null) {
-    items.push(
-      totals.savingsRate >= 0 ? (
-        <>
-          Sobraram <B>{formatBRL(totals.saldo)}</B>, {formatPercent(totals.savingsRate)} de tudo o que entrou.
-          {stats.negativeMonths.length > 0 ? (
-            <>
-              {" "}
-              Mesmo assim, os gastos passaram as entradas em {stats.negativeMonths.length === 1 ? "um mês" : `${stats.negativeMonths.length} meses`} (
-              {stats.negativeMonths.map(lower).join(", ")}).
-            </>
-          ) : (
-            monthly.length > 1 && <> Em nenhum mês os gastos passaram as entradas.</>
-          )}
-        </>
-      ) : (
-        <>
-          Saiu <B>{formatBRL(-totals.saldo)} a mais</B> do que entrou. Os gastos passaram as entradas em {stats.negativeMonths.length}{" "}
-          {stats.negativeMonths.length === 1 ? "mês" : "meses"}.
-        </>
-      ),
-    );
-  }
-
-  const topCat = stats.byCategory.find((c) => c.categoryId != null);
-  if (topCat) {
-    const cat = lookups.categories.get(topCat.categoryId!);
-    items.push(
-      <>
-        <B>
-          {cat?.emoji ? `${cat.emoji} ` : ""}
-          {cat?.name ?? "Uma categoria removida"}
-        </B>{" "}
-        é a categoria que mais pesa: {formatPercent(topCat.share)} dos gastos, em média {formatBRL(topCat.monthlyAvg)} por mês.
-      </>,
-    );
-  }
-
-  const wdTotal = stats.weekday.reduce((a, w) => a + w.total, 0);
-  if (stats.dailyAvg > 0) {
-    const topWd = [...stats.weekday].sort((a, b) => b.total - a.total)[0];
-    items.push(
-      <>
-        No dia a dia, você gasta em média <B>{formatBRL(stats.dailyAvg)} por dia</B>
-        {wdTotal > 0 && (
-          <>
-            , e <B>{WEEKDAYS[topWd.day].toLowerCase()}</B> é o dia que mais concentra gastos ({formatPercent(topWd.total / wdTotal)})
-          </>
-        )}
-        .
-      </>,
-    );
-  }
-
-  if (period.kind === "ano" && period.year === nowYear && closedCount >= 2 && closedCount < 12) {
-    const closedTotal = monthly.filter((r) => !r.partial).reduce((a, r) => a + r.gastos, 0);
-    const projected = closedTotal + spend.mean * (12 - closedCount);
-    items.push(
-      <>
-        Se o ritmo continuar, {nowYear} deve fechar com cerca de <B>{formatBRL(Math.round(projected / 10000) * 10000).replace(/,00$/, "")}</B> em gastos.
-      </>,
-    );
-  }
-
-  if (!items.length) return null;
-  return (
-    <Panel className="pb-2">
-      <SectionTitle>Análise</SectionTitle>
-      <ul className="space-y-2.5 px-4 pb-3">
-        {items.map((it, i) => (
-          <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-ink-2">
-            <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-brand" aria-hidden />
-            <span>{it}</span>
-          </li>
-        ))}
-      </ul>
-    </Panel>
   );
 }
 

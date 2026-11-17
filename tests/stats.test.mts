@@ -5,16 +5,25 @@ import { fakeSupabase, setupDb } from "./helpers.mts";
 
 process.env.TZ = "America/Fortaleza";
 
-const { computeStats, periodMonths } = await import("../lib/stats");
+const { computeStats, periodMonths, resolvePeriod, defaultPeriod, isDefaultPeriod } = await import("../lib/stats");
 const { currentMonth, shiftMonth } = await import("../lib/format");
 
 // ---------- períodos ----------
-assert.equal(periodMonths({ kind: "ano", year: 2026 }, "2026-11").length, 11, "ano atual vai até o mês atual");
-assert.deepEqual(periodMonths({ kind: "ano", year: 2025 }, "2026-11").slice(0, 2), ["2025-01", "2025-02"]);
-assert.equal(periodMonths({ kind: "ano", year: 2025 }, "2026-11").length, 12);
-assert.deepEqual(periodMonths({ kind: "12m" }, "2026-11")[0], "2025-12");
-assert.equal(periodMonths({ kind: "12m" }, "2026-11").length, 12);
-assert.deepEqual(periodMonths({ kind: "ano", year: 2027 }, "2026-11"), [], "ano futuro fica vazio");
+assert.deepEqual(defaultPeriod("2026-11"), { from: "2026-01", to: "2026-11" }, "padrão: ano atual até o mês atual");
+assert.deepEqual(resolvePeriod(undefined, undefined, "2026-11"), { from: "2026-01", to: "2026-11" });
+assert.deepEqual(resolvePeriod("lixo", "2026-13", "2026-11"), { from: "2026-01", to: "2026-11" }, "valores inválidos caem no padrão");
+assert.deepEqual(resolvePeriod("2025-03", "2025-08", "2026-11"), { from: "2025-03", to: "2025-08" });
+assert.deepEqual(resolvePeriod("2025-08", "2025-03", "2026-11"), { from: "2025-03", to: "2025-08" }, "pontas invertidas são trocadas");
+assert.deepEqual(resolvePeriod("2025-06", undefined, "2026-11"), { from: "2025-06", to: "2026-11" }, "sem fim vai até o mês atual");
+assert.deepEqual(resolvePeriod("2026-05", "2027-03", "2026-11"), { from: "2026-05", to: "2026-11" }, "não passa do mês atual");
+assert.equal(isDefaultPeriod({ from: "2026-01", to: "2026-11" }, "2026-11"), true);
+assert.equal(isDefaultPeriod({ from: "2025-12", to: "2026-11" }, "2026-11"), false);
+assert.equal(periodMonths({ from: "2026-01", to: "2026-11" }, "2026-11").length, 11, "ano atual vai até o mês atual");
+assert.deepEqual(periodMonths({ from: "2025-01", to: "2025-12" }, "2026-11").slice(0, 2), ["2025-01", "2025-02"]);
+assert.equal(periodMonths({ from: "2025-01", to: "2025-12" }, "2026-11").length, 12);
+assert.deepEqual(periodMonths({ from: "2025-11", to: "2026-02" }, "2026-11"), ["2025-11", "2025-12", "2026-01", "2026-02"], "atravessa o ano");
+assert.deepEqual(periodMonths({ from: "2026-03", to: "2026-03" }, "2026-11"), ["2026-03"], "um mês só");
+assert.deepEqual(periodMonths({ from: "2027-01", to: "2027-12" }, "2026-11"), [], "período futuro fica vazio");
 
 // ---------- cálculos ----------
 {
@@ -144,14 +153,18 @@ const g = globalThis as { __atlasTestClient?: unknown };
 g.__atlasTestClient = fakeSupabase(db, A);
 const { loadStats, loadLookups } = await import("../lib/stats");
 
-const yearStats = await loadStats({ kind: "ano", year: Number(year) });
+const yearStats = await loadStats({ from: `${year}-01`, to: now });
 assert.equal(yearStats.totals.gastos, 235000, "todas as 2350 linhas, sem o ano passado, o futuro ou outra pessoa");
 assert.equal(yearStats.topNames[0].count, 2350);
 assert.equal(yearStats.totals.entradas, 500000);
-const prev = await loadStats({ kind: "ano", year: Number(year) - 1 });
+const prev = await loadStats({ from: `${Number(year) - 1}-01`, to: `${Number(year) - 1}-12` });
 assert.equal(prev.totals.gastos, 99999);
+const cross = await loadStats({ from: lastYear, to: inYear });
+assert.equal(cross.totals.gastos, 99999 + 235000, "intervalo que atravessa o ano pega os dois");
+const narrow = await loadStats({ from: inYear, to: inYear });
+assert.equal(narrow.totals.gastos, 235000, "um mês só");
 const lookups = await loadLookups();
-assert.equal(lookups.firstYear, Number(year) - 1);
+assert.equal(lookups.firstMonth, lastYear);
 
 console.log(`✓ estatísticas ok: médias, tendência e ${yearStats.topNames[0].count} lançamentos lidos em páginas`);
 process.exit(0);

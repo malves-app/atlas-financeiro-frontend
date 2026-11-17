@@ -1,8 +1,8 @@
 import { getSupabase } from "./supabase/server";
 import { must } from "./must";
-import { currentMonth, daysInMonth, monthDiff, shiftMonth, todayISO } from "./format";
+import { currentMonth, daysInMonth, isMonth, monthDiff, shiftMonth, todayISO } from "./format";
 
-// Estatísticas de um período (ano ou últimos 12 meses).
+// Estatísticas de um período (intervalo de meses; o padrão é o ano atual).
 // Os cálculos ficam em computeStats (função pura, testada); loadStats só busca os dados.
 
 export interface StatEntry {
@@ -253,18 +253,37 @@ export function computeStats({
 
 /* ---------- período ---------- */
 
-export type Period = { kind: "ano"; year: number } | { kind: "12m" };
+/** Intervalo de meses (YYYY-MM), inclusive nas duas pontas. */
+export type Period = { from: string; to: string };
+
+const MIN_MONTH = "2000-01";
+
+/** Padrão: o ano atual, de janeiro até o mês atual. */
+export function defaultPeriod(now = currentMonth()): Period {
+  return { from: `${now.slice(0, 4)}-01`, to: now };
+}
+
+/**
+ * Lê o período da URL (?de=YYYY-MM&ate=YYYY-MM). Valores inválidos caem no padrão,
+ * pontas invertidas são trocadas e nada passa do mês atual.
+ */
+export function resolvePeriod(de: string | undefined, ate: string | undefined, now = currentMonth()): Period {
+  const def = defaultPeriod(now);
+  const clamp = (m: string) => (m > now ? now : m < MIN_MONTH ? MIN_MONTH : m);
+  let from = isMonth(de) ? clamp(de) : def.from;
+  let to = isMonth(ate) ? clamp(ate) : def.to;
+  if (from > to) [from, to] = [to, from];
+  return { from, to };
+}
+
+export function isDefaultPeriod(p: Period, now = currentMonth()): boolean {
+  const def = defaultPeriod(now);
+  return p.from === def.from && p.to === def.to;
+}
 
 export function periodMonths(p: Period, now = currentMonth()): string[] {
-  let from: string;
-  let to: string;
-  if (p.kind === "12m") {
-    from = shiftMonth(now, -11);
-    to = now;
-  } else {
-    from = `${p.year}-01`;
-    to = `${p.year}-12` < now ? `${p.year}-12` : now;
-  }
+  const from = p.from;
+  const to = p.to > now ? now : p.to;
   if (to < from) return [];
   return Array.from({ length: monthDiff(from, to) + 1 }, (_, i) => shiftMonth(from, i));
 }
@@ -332,13 +351,13 @@ export async function loadStats(p: Period): Promise<Stats> {
 export interface StatLookups {
   categories: Map<number, { name: string; emoji: string | null }>;
   methods: Map<number, { name: string; color: string; sort: number }>;
-  /** Primeiro ano com lançamentos (para os atalhos de ano) */
-  firstYear: number;
+  /** Primeiro mês com lançamentos (início da lista do filtro de período) */
+  firstMonth: string;
 }
 
 export async function loadLookups(): Promise<StatLookups> {
   const sb = await getSupabase();
-  const nowYear = Number(currentMonth().slice(0, 4));
+  const now = currentMonth();
   const [cats, methods, firstEntry, firstIncome] = await Promise.all([
     sb.from("categories").select("id, name, emoji"),
     sb.from("payment_methods").select("id, name, color, sort"),
@@ -350,10 +369,10 @@ export async function loadLookups(): Promise<StatLookups> {
   const firsts = [
     ...((must(firstEntry, "ler o primeiro mês") ?? []) as { month: string }[]),
     ...((must(firstIncome, "ler o primeiro mês") ?? []) as { month: string }[]),
-  ].map((r) => Number(r.month.slice(0, 4)));
+  ].map((r) => r.month);
   return {
     categories: new Map(catRows.map((c) => [Number(c.id), { name: c.name, emoji: c.emoji }])),
     methods: new Map(methodRows.map((m) => [Number(m.id), { name: m.name, color: m.color, sort: m.sort }])),
-    firstYear: Math.min(nowYear, ...firsts),
+    firstMonth: [now, ...firsts].sort()[0],
   };
 }
