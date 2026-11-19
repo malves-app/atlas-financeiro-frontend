@@ -10,8 +10,13 @@ export interface ReportData {
   monthTitle: string; // "novembro de 2026"
   partial: boolean;
   entradas: number;
-  gastos: number;
-  saldo: number;
+  /** fechado: nada mais por sair; andamento: mês atual com coisas por sair; futuro: mês que não começou */
+  mode: "fechado" | "andamento" | "futuro";
+  gastos: number; // tudo o que é do mês (previsto)
+  saiu: number; // o que já saiu de fato até hoje
+  aSair: number; // o que ainda vai sair
+  saldoHoje: number; // entradas − o que já saiu
+  saldo: number; // entradas − tudo o que é do mês
   pending: {
     date: string | null;
     name: string;
@@ -42,13 +47,24 @@ function buildText(
   lines.push(`📊 *Resumo de ${r.monthTitle}*${r.partial ? " (até hoje)" : ""}`);
   if (note.trim()) lines.push("", note.trim());
   lines.push("");
-  lines.push(`💰 Saldo: *${money(r.saldo)}*`);
-  lines.push(`⬇️ Entrou: ${money(r.entradas)}`);
-  const pct =
-    r.entradas > 0
-      ? ` (${Math.round((r.gastos / r.entradas) * 100)}% do que entrou)`
-      : "";
-  lines.push(`⬆️ Saiu: ${money(r.gastos)}${pct}`);
+  const pct = (v: number) =>
+    r.entradas > 0 ? ` (${Math.round((v / r.entradas) * 100)}% do que entrou)` : "";
+  if (r.mode === "andamento") {
+    lines.push(`💰 Saldo hoje: *${money(r.saldoHoje)}*`);
+    lines.push(`⬇️ Entrou: ${money(r.entradas)}`);
+    lines.push(`⬆️ Já saiu: ${money(r.saiu)}${pct(r.saiu)}`);
+    lines.push(`⏳ Ainda vai sair: ${money(r.aSair)}`);
+    lines.push(`📅 Saldo no fim do mês: *${money(r.saldo)}*`);
+  } else if (r.mode === "futuro") {
+    lines.push(`💰 Saldo previsto: *${money(r.saldo)}*`);
+    lines.push(`⬇️ Entrou: ${money(r.entradas)}`);
+    if (r.saiu !== 0) lines.push(`⬆️ Já saiu: ${money(r.saiu)}`);
+    lines.push(`⏳ Vai sair: ${money(r.aSair)}`);
+  } else {
+    lines.push(`💰 Saldo: *${money(r.saldo)}*`);
+    lines.push(`⬇️ Entrou: ${money(r.entradas)}`);
+    lines.push(`⬆️ Saiu: ${money(r.gastos)}${pct(r.gastos)}`);
+  }
 
   if (on.pagar) {
     lines.push("");

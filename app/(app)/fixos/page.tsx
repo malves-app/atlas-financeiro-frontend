@@ -43,6 +43,11 @@ export default async function Fixos({ searchParams }: { searchParams: SearchPara
   const remainingAfter = parcelas.reduce((a, e) => a + (e.installmentTotal! - e.installmentNo!) * e.amountCents, 0);
   const tooFar = month > shiftMonth(currentMonth(), GENERATE_MONTHS_AHEAD);
   const paidRatio = sum(fixos) > 0 ? sum(paid) / sum(fixos) : 0;
+  // No cartão não há check: a cobrança conta a partir do dia dela (até o fechamento da fatura)
+  const upcomingIds = new Set(summary.upcoming.map((e) => e.id));
+  const charged = cartao.filter((e) => !upcomingIds.has(e.id));
+  const toCharge = cartao.filter((e) => upcomingIds.has(e.id));
+  const chargedRatio = sum(cartao) > 0 ? Math.min(Math.max(sum(charged) / sum(cartao), 0), 1) : 0;
 
   // A forma de pagamento só aparece quando foge do comum daquela lista
   const usual = (xs: Entry[]) => {
@@ -55,19 +60,21 @@ export default async function Fixos({ searchParams }: { searchParams: SearchPara
     const c = e.categoryId != null ? catById.get(e.categoryId) : undefined;
     const late = canBeLate && e.paid !== true && !isCard(e) && !!e.date && e.date < today;
     const card = isCard(e);
-    // No cartão não há "pago": a fatura é paga de uma vez
-    const tone = !card && e.paid === true ? "done" : late ? "danger" : "default";
+    // No cartão não há "pago" (a fatura é paga de uma vez): o que já foi cobrado fica marcado
+    const done = card ? !upcomingIds.has(e.id) : e.paid === true;
+    const tone = done ? "done" : late ? "danger" : "default";
     return (
       <li className="flex items-center gap-3 px-4 py-2.5">
         <Link href={`/lancamentos/${e.id}?back=${back}`} className="flex min-w-0 flex-1 items-center gap-3">
           <DayBadge date={e.date} tone={tone} />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-3">
-              <span className={`truncate text-[15px] font-medium ${!card && e.paid === true ? "text-ink-2" : ""}`}>{e.name}</span>
-              <Money cents={e.amountCents} className={`text-[15px] font-semibold ${!card && e.paid === true ? "text-ink-3" : ""}`} />
+              <span className={`truncate text-[15px] font-medium ${done ? "text-ink-2" : ""}`}>{e.name}</span>
+              <Money cents={e.amountCents} className={`text-[15px] font-semibold ${done ? "text-ink-3" : ""}`} />
             </div>
             <div className="flex gap-2.5 truncate text-[13px] text-ink-3">
               {late && <span className="font-medium text-danger">Venceu</span>}
+              {card && done && <span className="shrink-0 font-medium text-brand">Cobrado</span>}
               {e.installmentTotal != null && !isCard(e) && (
                 <span className="num shrink-0">
                   Parcela {e.installmentNo}/{e.installmentTotal}
@@ -142,9 +149,32 @@ export default async function Fixos({ searchParams }: { searchParams: SearchPara
           </div>
         </div>
         <div className="mt-5 border-t border-line pt-4 lg:mt-0 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
-          <h2 className="text-[15px] text-ink-2">Cartão de crédito</h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[15px] text-ink-2">Cartão de crédito</h2>
+            <span className="text-[13px] font-medium text-ink-2">
+              {cartao.length > 0 ? `${charged.length} de ${cartao.length} cobrados` : "Nenhum"}
+            </span>
+          </div>
           <Money cents={sum(cartao)} className="display mt-0.5 block text-[30px] leading-tight font-bold" />
-          <dl className="mt-2 space-y-1 text-[13px]">
+          <div
+            className="mt-3 h-2.5 overflow-hidden rounded-full bg-paper"
+            role="meter"
+            aria-label="Quanto dos fixos do cartão já foi cobrado"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(chargedRatio * 100)}
+          >
+            <div className="h-full rounded-full bg-brand" style={{ width: `${chargedRatio * 100}%` }} />
+          </div>
+          <div className="mt-2 flex justify-between text-[13px]">
+            <span className="text-ink-2">
+              Cobrado <Money cents={sum(charged)} className="font-semibold text-brand" />
+            </span>
+            <span className="text-ink-2">
+              Falta <Money cents={sum(toCharge)} className={`font-semibold ${toCharge.length ? "text-ink" : "text-ink-3"}`} />
+            </span>
+          </div>
+          <dl className="mt-3 space-y-1 border-t border-line pt-3 text-[13px]">
             <div className="flex justify-between">
               <dt className="text-ink-2">{assinaturas.length} {assinaturas.length === 1 ? "fixo ou assinatura" : "fixos e assinaturas"}</dt>
               <dd>

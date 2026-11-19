@@ -1,6 +1,7 @@
 import { getSupabase, type Supabase } from "./supabase/server";
-import { currentMonth, dateInMonth, monthDiff, nextPaymentColor, PAYMENT_COLORS, shiftMonth } from "./format";
+import { currentMonth, dateInMonth, monthDiff, nextPaymentColor, PAYMENT_COLORS, shiftMonth, todayISO } from "./format";
 import { must } from "./must";
+import { isRealized } from "./realized";
 
 // Toda leitura e escrita passa pelo Supabase com a sessão de quem está logado.
 // As regras de segurança (RLS) do banco garantem que cada usuário só acessa os próprios dados.
@@ -292,16 +293,24 @@ export interface MonthSummary {
   entries: Entry[];
   incomes: Income[];
   totals: {
+    /** Tudo o que é do mês, inclusive o que ainda vai sair (previsto). */
     gastos: number;
     entradas: number;
+    /** Entradas menos o previsto. */
     saldo: number;
     fixo: number;
     cartao: number;
     avulso: number;
+    /** O que já saiu de fato até hoje (ver lib/realized.ts). */
+    saiu: number;
+    /** O que ainda vai sair no mês: contas não pagas, cobranças do cartão por vir, gastos com data futura. */
+    aSair: number;
   };
   byPayment: { paymentMethodId: number | null; total: number }[];
   byCategory: { categoryId: number | null; total: number; count: number }[];
   pending: Entry[];
+  /** Lançamentos que ainda vão sair, por data. */
+  upcoming: (Entry & { onCard: boolean })[];
 }
 
 export async function getMonth(month: string): Promise<MonthSummary> {
@@ -310,12 +319,12 @@ export async function getMonth(month: string): Promise<MonthSummary> {
   const [entryRes, incomeRes, methodRes] = await Promise.all([
     sb.from("entries").select("*").eq("month", month).order("date", { nullsFirst: true }).order("id"),
     sb.from("incomes").select("*").eq("month", month).order("date", { nullsFirst: true }).order("id"),
-    sb.from("payment_methods").select("id, is_credit"),
+    sb.from("payment_methods").select("id, is_credit, closing_day"),
   ]);
-  const creditIds = new Set(
-    ((must(methodRes, "ler as formas de pagamento") ?? []) as R[]).filter((m) => m.is_credit).map((m) => Number(m.id)),
-  );
-  const knownIds = new Set(((methodRes.data ?? []) as R[]).map((m) => Number(m.id)));
+  const methodRows = (must(methodRes, "ler as formas de pagamento") ?? []) as R[];
+  const creditIds = new Set(methodRows.filter((m) => m.is_credit).map((m) => Number(m.id)));
+  const knownIds = new Set(methodRows.map((m) => Number(m.id)));
+  const closingDays = new Map(methodRows.map((m) => [Number(m.id), num(m.closing_day)]));
   const entries = (must(entryRes, "ler os gastos") as R[]).map(toEntry);
   const incomes = (must(incomeRes, "ler as entradas") as R[]).map(toIncome);
   const sum = (xs: { amountCents: number }[]) => xs.reduce((a, x) => a + x.amountCents, 0);
@@ -348,6 +357,21 @@ export async function getMonth(month: string): Promise<MonthSummary> {
           .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
       : [];
 
+  // Já saiu × ainda vai sair
+  const today = todayISO();
+  const upcoming = entries
+    .map((e) => ({ ...e, onCard: onCard(e) }))
+    .filter(
+      (e) =>
+        !isRealized(
+          e,
+          { onCard: e.onCard, closingDay: e.paymentMethodId != null ? (closingDays.get(e.paymentMethodId) ?? null) : null },
+          today,
+        ),
+    )
+    .sort((a, b) => (a.date ?? "99").localeCompare(b.date ?? "99"));
+  const aSair = sum(upcoming);
+
   return {
     month,
     entries,
@@ -359,10 +383,13 @@ export async function getMonth(month: string): Promise<MonthSummary> {
       fixo: sum(entries.filter((e) => e.kind === "fixo")),
       cartao: sum(entries.filter((e) => e.kind === "cartao")),
       avulso: sum(entries.filter((e) => e.kind === "avulso")),
+      saiu: gastos - aSair,
+      aSair,
     },
     byPayment,
     byCategory,
     pending,
+    upcoming,
   };
 }
 

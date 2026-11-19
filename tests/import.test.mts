@@ -121,6 +121,17 @@ assert.deepEqual(novAgain.pending.map((e) => e.name).sort(), ["Condomínio", "Un
 await data.setPaid(novAgain.pending.find((e) => e.name === "Condomínio")!.id, true);
 assert.equal((await data.getMonth("2026-11")).pending.length, 1);
 
+// Já saiu × ainda vai sair: o previsto não muda; conta não paga ainda não saiu, conta paga já saiu
+{
+  const m = await data.getMonth("2026-11");
+  assert.equal(m.totals.gastos, 1393973, "previsto continua o total do mês");
+  assert.equal(m.totals.saiu + m.totals.aSair, m.totals.gastos, "real + a sair = previsto");
+  const up = new Set(m.upcoming.map((e) => e.id));
+  assert.ok(m.pending.every((e) => up.has(e.id)), "toda conta a pagar ainda vai sair");
+  assert.ok(!up.has(m.entries.find((e) => e.name === "Condomínio")!.id), "conta paga já saiu");
+  assert.ok(m.upcoming.every((e) => e.kind !== "fixo" || e.onCard || e.paid !== true), "nada pago entre o que vai sair");
+}
+
 // Novo parcelamento na parcela 3 de 10: aparece em nov (3/10) e dez (4/10)
 const credito = methods.find((m) => m.name === "Crédito")!;
 const conta = methods.find((m) => m.name === "Conta Corrente")!;
@@ -206,7 +217,7 @@ assert.equal((await data.getIncomeSuggestions())[0], "Plantão extra");
   // Compra parcelada lançada pelo "Lançar gasto": vira fixo do cartão, inclusive numa fatura que já passou
   const { shiftMonth } = await import("../lib/format");
   const start = shiftMonth(now, -1);
-  await data.getMonth(start); // mês passado já montado
+  assert.equal((await data.getMonth(start)).totals.aSair, 0, "mês que passou: tudo já saiu"); // e fica montado
   await data.createRecurring(
     { kind: "cartao", name: "Fogão", amountCents: 30000, day: 20, paymentMethodId: card.id, categoryId: null, installments: 10, startMonth: start },
     { backfill: true },
