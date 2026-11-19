@@ -46,15 +46,16 @@ function EditorHeader({ title, mode, back }: { title: string; mode: FormMode; ba
   const closeModal = useCloseModal();
   if (mode === "modal") {
     return (
-      <header className="sticky top-0 z-10 flex items-center justify-between bg-paper/95 px-5 pt-2 pb-2 backdrop-blur lg:pt-5">
+      <header className="sticky top-0 z-10 flex items-center justify-between bg-paper/90 px-5 pt-2 pb-2 backdrop-blur-md lg:pt-5">
         <h1 className="display text-[20px] font-bold">{title}</h1>
         <button
           type="button"
           onClick={() => closeModal?.()}
           aria-label="Fechar"
-          className="-mr-2 grid size-10 place-items-center rounded-full text-ink-2 hover:bg-surface"
+          title="Fechar (Esc)"
+          className="grid size-10 place-items-center rounded-full bg-surface text-ink-2 ring-1 ring-line/80 transition-colors hover:bg-white hover:text-ink"
         >
-          <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         </button>
@@ -105,9 +106,12 @@ export function EntryEditor({ data, mode, back }: { data: EntryEditorData; mode:
         {data.recurringId != null && (
           <Link
             href={`/fixos/${data.recurringId}?m=${entry.month}`}
-            className="block rounded-2xl bg-surface px-4 py-3 text-[15px] font-medium ring-1 ring-line"
+            className="flex items-center justify-between gap-3 rounded-[20px] bg-surface px-4 py-3.5 text-[15px] font-medium ring-1 ring-line/80 transition-colors hover:ring-ink-3/40"
           >
             Editar ou encerrar este fixo em todos os meses
+            <svg viewBox="0 0 24 24" className="size-4 shrink-0 text-ink-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M9 6l6 6-6 6" />
+            </svg>
           </Link>
         )}
         <DeleteButton

@@ -53,6 +53,32 @@
     color: inherit;
   }
 
+  /* O Tailwind 4 deixa botões com a seta comum do mouse: tudo o que é clicável mostra a mãozinha */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="switch"],
+  summary,
+  select:not(:disabled),
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="date"],
+  input[type="month"],
+  input[type="color"],
+  input[type="file"],
+  input[type="submit"],
+  input[type="button"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+
   /* Inputs com 16px evitam o zoom automático do iPhone */
   input,
   select,

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ExpenseForm,
   IncomeForm,
+  Segmented,
   type CategoryOption,
   type FormMode,
   type PaymentMethodOption,
@@ -60,25 +61,8 @@ export function QuickAdd({
     [tab, closeModal, router],
   );
 
-  const tabBtn = (value: "gasto" | "entrada", label: string) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={tab === value}
-      onClick={() => {
-        setTab(value);
-        setNonce((n) => n + 1);
-      }}
-      className={`rounded-full px-4 py-2 text-[15px] font-semibold ${
-        tab === value ? (value === "gasto" ? "bg-ink text-white" : "bg-brand text-white") : "text-ink-2"
-      }`}
-    >
-      {label}
-    </button>
-  );
-
   const closeIcon = (
-    <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
       <path d="M6 6l12 12M18 6L6 18" />
     </svg>
   );
@@ -86,13 +70,26 @@ export function QuickAdd({
   return (
     <>
       <header
-        className={`flex items-center justify-between px-3 pb-2 ${
-          mode === "modal" ? "sticky top-0 z-10 bg-paper/95 pt-2 backdrop-blur lg:px-4 lg:pt-4" : "pt-[max(env(safe-area-inset-top),10px)] lg:px-0 lg:pt-2 lg:pb-4"
+        className={`flex items-center justify-between gap-3 px-4 pb-2 ${
+          mode === "modal" ? "sticky top-0 z-10 bg-paper/90 pt-2 backdrop-blur-md lg:px-5 lg:pt-5" : "pt-[max(env(safe-area-inset-top),10px)] lg:px-0 lg:pt-2 lg:pb-4"
         }`}
       >
-        <div role="tablist" aria-label="Tipo de lançamento" className="flex gap-1 rounded-full bg-surface p-1 ring-1 ring-line">
-          {tabBtn("gasto", "Gasto")}
-          {tabBtn("entrada", "Entrada")}
+        <div className="w-[210px]">
+          <Segmented
+            role="tab"
+            label="Tipo de lançamento"
+            options={[
+              ["gasto", "Gasto"],
+              ["entrada", "Entrada"],
+            ]}
+            value={tab}
+            thumb={tab === "gasto" ? "bg-ink" : "bg-brand"}
+            track="bg-surface ring-1 ring-line/80"
+            onChange={(v) => {
+              setTab(v);
+              setNonce((n) => n + 1);
+            }}
+          />
         </div>
         {flash && (
           <span role="status" className="toast flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-[13px] font-medium text-white">
@@ -107,12 +104,17 @@ export function QuickAdd({
             type="button"
             onClick={() => closeModal?.()}
             aria-label="Fechar"
-            className="grid size-10 place-items-center rounded-full text-ink-2 hover:bg-surface"
+            title="Fechar (Esc)"
+            className="grid size-10 place-items-center rounded-full bg-surface text-ink-2 ring-1 ring-line/80 transition-colors hover:bg-white hover:text-ink"
           >
             {closeIcon}
           </button>
         ) : (
-          <Link href={`/?m=${month}`} aria-label="Fechar" className="grid size-10 place-items-center rounded-full text-ink-2 hover:bg-surface">
+          <Link
+            href={`/?m=${month}`}
+            aria-label="Fechar"
+            className="grid size-10 place-items-center rounded-full bg-surface text-ink-2 ring-1 ring-line/80 transition-colors hover:bg-white hover:text-ink"
+          >
             {closeIcon}
           </Link>
         )}
