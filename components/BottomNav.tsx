@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
 
 const STATS_ICON = "M4 20h16M7 16v-5M12 16V6M17 16v-8";
@@ -68,10 +69,9 @@ export function BottomNav() {
   );
 }
 
-/** Computador: menu lateral fixo, com o botão de lançar em destaque. */
+/** Computador: menu lateral fixo. O botão de lançar flutua no canto (LaunchButton). */
 export function SideNav({ email }: { email: string | null }) {
   const nav = useNav();
-  const primary = nav.find((it) => it.primary)!;
   return (
     <nav
       aria-label="Navegação principal"
@@ -80,14 +80,7 @@ export function SideNav({ email }: { email: string | null }) {
       <Link href="/" className="px-3 text-[22px]">
         <Logo />
       </Link>
-      <Link
-        href={primary.href}
-        className="mt-6 flex items-center justify-center gap-2 rounded-full bg-brand px-4 py-3 text-[15px] font-semibold text-white shadow-[0_6px_16px_-6px_rgba(11,122,107,0.6)] hover:brightness-110"
-      >
-        <Icon d={primary.icon} className="size-5" width={2.4} />
-        Lançar gasto
-      </Link>
-      <ul className="mt-6 space-y-1">
+      <ul className="mt-8 space-y-1">
         {nav
           .filter((it) => !it.primary)
           .map((it) => (
@@ -107,6 +100,71 @@ export function SideNav({ email }: { email: string | null }) {
       </ul>
       {email && <p className="mt-auto truncate px-3 text-[13px] text-ink-3">{email}</p>}
     </nav>
+  );
+}
+
+/**
+ * Computador: botão flutuante no canto de baixo, sempre à mão.
+ * Encolhe para um círculo enquanto a página desce e volta a mostrar o texto ao subir.
+ * Atalho: tecla N (fora de campos de texto).
+ */
+export function LaunchButton() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const href = useNav().find((it) => it.primary)!.href;
+  const [compact, setCompact] = useState(false);
+  const hidden = pathname.startsWith("/novo");
+
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y < 160) setCompact(false);
+      else if (y > last + 6) setCompact(true);
+      else if (y < last - 6) setCompact(false);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (hidden) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "n" || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, select, [contenteditable=true], dialog[open]")) return;
+      if (document.querySelector("dialog[open]")) return;
+      e.preventDefault();
+      router.push(href);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hidden, href, router]);
+
+  if (hidden) return null;
+  return (
+    <Link
+      href={href}
+      aria-label="Lançar gasto"
+      title="Lançar gasto (N)"
+      aria-keyshortcuts="N"
+      className="group fixed right-6 bottom-6 z-30 hidden items-center rounded-full bg-ink p-1.5 text-white shadow-[0_14px_34px_-12px_rgba(23,32,51,0.65),0_2px_6px_rgba(23,32,51,0.18)] ring-1 ring-white/10 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-12px_rgba(23,32,51,0.7),0_2px_6px_rgba(23,32,51,0.2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 lg:flex xl:right-8 xl:bottom-8"
+    >
+      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#17b39b] transition-transform duration-300 group-hover:rotate-90 motion-reduce:transition-none">
+        <Icon d="M12 5v14M5 12h14" className="size-[22px]" width={2.6} />
+      </span>
+      <span
+        className={`flex items-center gap-2.5 overflow-hidden whitespace-nowrap transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${
+          compact ? "max-w-0 pr-0 pl-0 opacity-0" : "max-w-[14rem] pr-3 pl-3 opacity-100"
+        }`}
+      >
+        <span className="text-[15px] font-semibold">Lançar gasto</span>
+        <kbd className="grid size-6 place-items-center rounded-md bg-white/10 font-sans text-[12px] font-semibold text-white/60">
+          N
+        </kbd>
+      </span>
+    </Link>
   );
 }
 

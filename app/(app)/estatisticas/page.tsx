@@ -247,65 +247,57 @@ export default async function Estatisticas({ searchParams }: { searchParams: Sea
 
           {/* Tabela */}
           <Panel>
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-[15px] font-semibold marker:hidden">
-                Tabela mês a mês
-                <span className="text-[14px] font-medium text-brand">
-                  <span className="group-open:hidden">Mostrar</span>
-                  <span className="hidden group-open:inline">Esconder</span>
-                </span>
-              </summary>
-              <div className="overflow-x-auto px-2 pb-3">
-                <table className="w-full min-w-[460px] text-[14px]">
-                  <thead>
-                    <tr className="text-left text-[12px] text-ink-3">
-                      <th className="px-2 py-2 font-medium">Mês</th>
-                      <th className="px-2 py-2 text-right font-medium">Entrou</th>
-                      <th className="px-2 py-2 text-right font-medium">Gastou</th>
-                      <th className="px-2 py-2 text-right font-medium">Saldo</th>
-                      <th className="px-2 py-2 text-right font-medium">Acumulado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {monthly.map((r, i) => (
-                      <tr key={r.month} className="border-t border-line">
-                        <td className="px-2 py-2">
-                          {monthLabel(r.month, multiYear)}
-                          {r.partial && <span className="text-ink-3"> (parcial)</span>}
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          <Money cents={r.entradas} />
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          <Money cents={r.gastos} />
-                        </td>
-                        <td className={`px-2 py-2 text-right font-medium ${r.saldo < 0 ? "text-danger" : ""}`}>
-                          <Money cents={r.saldo} />
-                        </td>
-                        <td className={`px-2 py-2 text-right ${stats.cumulative[i] < 0 ? "text-danger" : "text-ink-2"}`}>
-                          <Money cents={stats.cumulative[i]} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-line font-semibold">
-                      <td className="px-2 py-2">Total</td>
-                      <td className="px-2 py-2 text-right">
-                        <Money cents={totals.entradas} />
+            <SectionTitle>Tabela mês a mês</SectionTitle>
+            <div className="overflow-x-auto px-2 pb-3">
+              <table className="w-full min-w-[460px] text-[14px]">
+                <thead>
+                  <tr className="text-left text-[12px] text-ink-3">
+                    <th className="px-2 py-2 font-medium">Mês</th>
+                    <th className="px-2 py-2 text-right font-medium">Entrou</th>
+                    <th className="px-2 py-2 text-right font-medium">Gastou</th>
+                    <th className="px-2 py-2 text-right font-medium">Saldo</th>
+                    <th className="px-2 py-2 text-right font-medium">Acumulado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthly.map((r, i) => (
+                    <tr key={r.month} className="border-t border-line">
+                      <td className="px-2 py-2">
+                        {monthLabel(r.month, multiYear)}
+                        {r.partial && <span className="text-ink-3"> (parcial)</span>}
                       </td>
                       <td className="px-2 py-2 text-right">
-                        <Money cents={totals.gastos} />
+                        <Money cents={r.entradas} />
                       </td>
-                      <td className={`px-2 py-2 text-right ${totals.saldo < 0 ? "text-danger" : ""}`}>
-                        <Money cents={totals.saldo} />
+                      <td className="px-2 py-2 text-right">
+                        <Money cents={r.gastos} />
                       </td>
-                      <td />
+                      <td className={`px-2 py-2 text-right font-medium ${r.saldo < 0 ? "text-danger" : ""}`}>
+                        <Money cents={r.saldo} />
+                      </td>
+                      <td className={`px-2 py-2 text-right ${stats.cumulative[i] < 0 ? "text-danger" : "text-ink-2"}`}>
+                        <Money cents={stats.cumulative[i]} />
+                      </td>
                     </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </details>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-line font-semibold">
+                    <td className="px-2 py-2">Total</td>
+                    <td className="px-2 py-2 text-right">
+                      <Money cents={totals.entradas} />
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <Money cents={totals.gastos} />
+                    </td>
+                    <td className={`px-2 py-2 text-right ${totals.saldo < 0 ? "text-danger" : ""}`}>
+                      <Money cents={totals.saldo} />
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </Panel>
         </div>
       )}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Money } from "./ui";
+import { ShowMore } from "./ShowMore";
 import { formatBRL } from "@/lib/format";
 
 export interface CategoryRow {
@@ -19,6 +20,7 @@ export function CategoryBars({ rows, month }: { rows: CategoryRow[]; month: stri
   const total = rows.reduce((a, r) => a + Math.max(r.total, 0), 0) || 1;
   const head = rows.slice(0, VISIBLE);
   const tail = rows.slice(VISIBLE);
+  const tailTotal = tail.reduce((a, r) => a + r.total, 0);
 
   const Row = ({ r }: { r: CategoryRow }) => {
     const over = r.budget != null && r.total > r.budget;
@@ -62,19 +64,22 @@ export function CategoryBars({ rows, month }: { rows: CategoryRow[]; month: stri
         ))}
       </ul>
       {tail.length > 0 && (
-        <details className="group">
-          <summary className="cursor-pointer list-none px-4 py-2 text-[14px] font-medium text-brand marker:hidden">
-            <span className="group-open:hidden">
-              Mostrar mais {tail.length} {tail.length === 1 ? "categoria" : "categorias"}
-            </span>
-            <span className="hidden group-open:inline">Mostrar menos</span>
-          </summary>
+        <ShowMore
+          more={
+            <>
+              Ver mais {tail.length} {tail.length === 1 ? "categoria" : "categorias"}
+              <span className="font-medium text-ink-3">
+                · <Money cents={tailTotal} />
+              </span>
+            </>
+          }
+        >
           <ul>
             {tail.map((r) => (
               <Row key={r.id ?? "sem"} r={r} />
             ))}
           </ul>
-        </details>
+        </ShowMore>
       )}
     </>
   );
