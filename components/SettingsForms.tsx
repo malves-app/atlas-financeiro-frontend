@@ -2,11 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { archiveCategoryAction, archivePaymentMethodAction, importSheetAction, saveCategory, savePaymentMethod } from "@/app/actions";
-import { centsToInput, formatBRL, monthLabel, PAYMENT_COLORS } from "@/lib/format";
+import { monthLabel, PAYMENT_COLORS } from "@/lib/format";
 import { LogoLoader } from "./LogoLoader";
 import { SubmitButton } from "./SubmitButton";
 
-export function CategoryRow({ c }: { c?: { id: number; name: string; emoji: string; budgetCents: number | null } }) {
+export function CategoryRow({ c }: { c?: { id: number; name: string; emoji: string } }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(async (prev: Awaited<ReturnType<typeof saveCategory>>, f: FormData) => {
     const r = await saveCategory(prev, f);
@@ -21,7 +21,6 @@ export function CategoryRow({ c }: { c?: { id: number; name: string; emoji: stri
           {c.emoji}
         </span>
         <span className="flex-1 text-[15px] font-medium">{c.name}</span>
-        <span className="text-[13px] text-ink-3 num">{c.budgetCents != null ? `Previsto ${formatBRL(c.budgetCents)}` : "Sem previsão"}</span>
       </button>
     ) : (
       <button type="button" onClick={() => setOpen(true)} className="w-full px-4 py-3 text-left text-[15px] font-semibold text-brand">
@@ -37,16 +36,6 @@ export function CategoryRow({ c }: { c?: { id: number; name: string; emoji: stri
         {c && <input type="hidden" name="id" value={c.id} />}
         <input name="emoji" defaultValue={c?.emoji ?? ""} aria-label="Emoji" placeholder="🏷️" className={`${input} text-center`} />
         <input name="name" defaultValue={c?.name ?? ""} aria-label="Nome da categoria" placeholder="Ex.: Pets, Academia" required className={input} autoFocus />
-        <label className="col-span-2 block">
-          <span className="mb-1 block text-[13px] text-ink-2">Quanto você prevê gastar por mês (opcional)</span>
-          <input
-            name="budget"
-            inputMode="decimal"
-            defaultValue={c?.budgetCents != null ? centsToInput(c.budgetCents) : ""}
-            placeholder="Ex.: 1.200,00"
-            className={`${input} w-full num`}
-          />
-        </label>
         {state?.error && <p className="col-span-2 text-[14px] font-medium text-danger">{state.error}</p>}
         <div className="col-span-2 flex gap-2">
           <button

@@ -1,10 +1,16 @@
 import Link from "next/link";
 import {
+  categoryNames,
   getMonth,
+  getMonthTotals,
   hasAnyData,
   listCategories,
+  listGoals,
   listPaymentMethods,
+  monthTotalsOf,
 } from "@/lib/data";
+import { goalBoard, goalsFor, type MonthTotals } from "@/lib/goals";
+import { GoalsPanel } from "@/components/GoalsPanel";
 import {
   currentMonth,
   formatShortDate,
@@ -46,11 +52,13 @@ export default async function Painel({
 }) {
   const { month } = await readParams(searchParams);
   // Tudo de uma vez: as consultas não dependem umas das outras
-  const [methods, categories, summary, anyData] = await Promise.all([
+  const [methods, categories, summary, anyData, goals, names] = await Promise.all([
     listPaymentMethods(),
     listCategories(),
     getMonth(month),
     hasAnyData(),
+    listGoals(),
+    categoryNames(),
   ]);
   const { totals } = summary;
   const catById = new Map(categories.map((c) => [c.id, c]));
@@ -69,6 +77,18 @@ export default async function Painel({
     byPayment: summary.byPayment,
     methods,
   });
+
+  // Metas do mês (e do ano, que somam os meses de janeiro até hoje)
+  const year = month.slice(0, 4);
+  const nowMonth = currentMonth();
+  const goalTotals: Map<string, MonthTotals> = goalsFor(goals, month).annual.length
+    ? await getMonthTotals(`${year}-01`, `${year}-12` < nowMonth ? `${year}-12` : nowMonth)
+    : new Map();
+  goalTotals.set(month, monthTotalsOf(summary));
+  const board = goalBoard(goals, { month, today, totals: goalTotals, categories: names });
+  const categoryGoal = new Map(
+    board.monthly.filter((p) => p.goal.kind === "categoria").map((p) => [p.goal.categoryId, p.target]),
+  );
 
   const recent = summary.entries
     .filter((e) => e.kind === "avulso")
@@ -140,7 +160,7 @@ export default async function Painel({
         emoji: cat?.emoji ?? "🏷️",
         total: c.total,
         count: c.count,
-        budget: cat?.budgetCents ?? null,
+        budget: categoryGoal.get(c.categoryId) ?? null,
       };
     });
 
@@ -222,7 +242,7 @@ export default async function Painel({
 
             {/* Por categoria */}
             {(catRows.length > 0 || uncategorized) && (
-              <Panel className="order-5 pb-3">
+              <Panel className="order-6 pb-3">
                 <SectionTitle>Por categoria</SectionTitle>
                 {catRows.length > 0 && (
                   <CategoryBars month={month} rows={catRows} />
@@ -380,9 +400,17 @@ export default async function Painel({
               )
             )}
 
+            {/* Metas: as mais urgentes primeiro; sem metas, no mês atual, um convite */}
+            <GoalsPanel
+              month={month}
+              items={[...board.monthly, ...board.annual]}
+              invite={isCurrent && anyData}
+              className="order-3"
+            />
+
             {/* Para onde foi */}
             {totals.gastos !== 0 && (
-              <Panel className="order-3 pb-2">
+              <Panel className="order-4 pb-2">
                 <SectionTitle>Para onde foi</SectionTitle>
                 <div className="px-4 pb-1">
                   <StackedBar
@@ -429,7 +457,7 @@ export default async function Painel({
 
             {/* Por forma de pagamento */}
             {payRows.length > 0 && (
-              <Panel className="order-4 pb-2">
+              <Panel className="order-5 pb-2">
                 <SectionTitle>Por forma de pagamento</SectionTitle>
                 <div className="px-4 pb-1">
                   <StackedBar
@@ -475,7 +503,7 @@ export default async function Painel({
 
             {/* Últimos gastos */}
             {recent.length > 0 && (
-              <Panel className="order-6">
+              <Panel className="order-7">
                 <SectionTitle
                   right={
                     <Link

@@ -14,6 +14,7 @@ import {
 } from "./EntryForm";
 import { useCloseModal } from "./Modal";
 import { showToast } from "./Toast";
+import type { GoalHint } from "@/lib/goals";
 
 export interface QuickAddData {
   categories: CategoryOption[];
@@ -21,6 +22,8 @@ export interface QuickAddData {
   methods: PaymentMethodOption[];
   incomeSuggestions: string[];
   today: string;
+  /** Metas do mês atual e do próximo (com quanto já foi usado). */
+  goalHints: GoalHint[];
 }
 
 /** Lançar gasto ou entrada. Usado na janela (modal) e na página /novo. */
@@ -129,6 +132,7 @@ export function QuickAdd({
           today={data.today}
           mode={mode}
           onDone={onDone}
+          goalHints={data.goalHints}
         />
       ) : (
         <IncomeForm

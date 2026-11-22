@@ -32,6 +32,13 @@ export function PainelHeader({
           <div className="-mr-1.5 flex items-center">
             {shareIcon}
             <Link
+              href={`/metas?m=${month}`}
+              aria-label="Metas"
+              className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/70 lg:hidden"
+            >
+              <TargetGlyph className="size-[22px]" />
+            </Link>
+            <Link
               href="/ajustes"
               aria-label="Ajustes"
               className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/70 lg:hidden"
@@ -105,5 +112,48 @@ export function ShareGlyph() {
       <path d="M12 3v12M7.5 7.5L12 3l4.5 4.5" />
       <path d="M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12" />
     </svg>
+  );
+}
+
+/** Alvo (Metas): o mesmo ícone do menu. */
+export const TARGET_ICON = "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM12 12.01V12M12 12l7-7M16.5 5H19v2.5";
+
+export function TargetGlyph({ className = "size-5", width = 1.8 }: { className?: string; width?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={TARGET_ICON} />
+    </svg>
+  );
+}
+
+export function MetasHeader({ month }: { month: string }) {
+  return (
+    <>
+      <header className="flex items-center justify-between gap-2 px-4 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:px-0 lg:pt-2 lg:pb-3">
+        <h1 className="display text-[22px] font-bold tracking-tight lg:text-[28px]">Metas</h1>
+        <div className="flex items-center gap-1 lg:gap-3">
+          <Link
+            href={`/metas/nova?m=${month}`}
+            className="hidden items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[14px] font-semibold text-white lg:inline-flex"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nova meta
+          </Link>
+          <MonthSwitcher month={month} basePath="/metas" />
+          <Link
+            href={`/metas/nova?m=${month}`}
+            aria-label="Nova meta"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-ink text-white lg:hidden"
+          >
+            <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </Link>
+        </div>
+      </header>
+      <BackToCurrentMonth month={month} basePath="/metas" />
+    </>
   );
 }

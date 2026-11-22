@@ -10,6 +10,9 @@ export type RouteKey =
   | "fixo-novo"
   | "fixo"
   | "estatisticas"
+  | "metas"
+  | "meta-nova"
+  | "meta"
   | "ajustes"
   | "novo";
 
@@ -22,6 +25,9 @@ const ROUTES: [RegExp, RouteKey][] = [
   [/^\/fixos\/novo\/?$/, "fixo-novo"],
   [/^\/fixos\/\d+\/?$/, "fixo"],
   [/^\/estatisticas\/?$/, "estatisticas"],
+  [/^\/metas\/?$/, "metas"],
+  [/^\/metas\/nova\/?$/, "meta-nova"],
+  [/^\/metas\/\d+\/?$/, "meta"],
   [/^\/ajustes\/?$/, "ajustes"],
   [/^\/novo\/?$/, "novo"],
 ];

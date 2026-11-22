@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as data from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { isMonth, parseAmountInput, referenceMonth, currentMonth } from "@/lib/format";
+import { isMonth, monthPhrase, parseAmountInput, referenceMonth, currentMonth } from "@/lib/format";
+import { findConflict, isGoalKind, KIND_INFO } from "@/lib/goals";
 import { importFromGoogleSheet, type ImportReport } from "@/lib/import/sheet";
 
 /** ok/again/at: usados no modo modal (o formulário fecha ou limpa sozinho em vez de mudar de página). */
@@ -216,17 +217,68 @@ export async function endRecurringAction(f: FormData) {
   done(`/fixos?m=${str(f, "month") || currentMonth()}&ok=encerrado`);
 }
 
+/* ---------- metas ---------- */
+
+export async function saveGoal(_: FormState, f: FormData): Promise<FormState> {
+  const id = optInt(f, "id");
+  const target = parseAmountInput(str(f, "amount"));
+  const month = isMonth(str(f, "month")) ? str(f, "month") : currentMonth();
+  if (target == null || target <= 0) return { error: "Informe o valor da meta." };
+
+  if (id) {
+    const goal = await data.getGoal(id);
+    if (!goal) return { error: "Essa meta não existe mais." };
+    // Meta do mês: o valor novo vale a partir do mês na tela (os anteriores ficam com o antigo)
+    await data.updateGoal(id, target, month);
+    done(`/metas?m=${month}&ok=meta`);
+  }
+
+  const kind = str(f, "kind");
+  if (!isGoalKind(kind)) return { error: "Escolha o tipo de meta." };
+  const period = str(f, "period") === "ano" && KIND_INFO[kind].annual ? "ano" : "mes";
+  const categoryId = kind === "categoria" ? optInt(f, "categoryId") : null;
+  if (kind === "categoria" && !categoryId) return { error: "Escolha a categoria." };
+  const year = optInt(f, "year") ?? Number(month.slice(0, 4));
+  if (period === "ano" && (year < 2000 || year > 2100)) return { error: "Escolha o ano." };
+  const goal = {
+    kind,
+    period,
+    categoryId,
+    targetCents: target,
+    startMonth: period === "ano" ? `${year}-01` : month,
+    endMonth: period === "ano" ? `${year}-12` : null,
+  } as const;
+  const twin = findConflict(await data.listGoals(), goal);
+  if (twin)
+    return {
+      error:
+        twin.period === "mes" && twin.startMonth > goal.startMonth
+          ? `Você já tem essa meta a partir de ${monthPhrase(twin.startMonth)}. Abra ela em Metas, naquele mês, para mudar o valor ou o início.`
+          : "Você já tem essa meta. Abra ela na lista de metas para mudar o valor.",
+    };
+  await data.createGoal(goal);
+  // Meta de outro ano: abre a tela em janeiro daquele ano, onde ela aparece
+  const view = period === "ano" && String(year) !== month.slice(0, 4) ? `${year}-01` : month;
+  done(`/metas?m=${view}&ok=meta`);
+}
+
+export async function endGoalAction(f: FormData) {
+  const id = optInt(f, "id");
+  const month = isMonth(str(f, "month")) ? str(f, "month") : currentMonth();
+  if (id) await data.endGoal(id, month);
+  done(`/metas?m=${month}&ok=meta-encerrada`);
+}
+
 /* ---------- ajustes ---------- */
 
 export async function saveCategory(_: FormState, f: FormData): Promise<FormState> {
   const id = optInt(f, "id") ?? undefined;
   const name = str(f, "name");
   const emoji = str(f, "emoji") || "🏷️";
-  const budgetRaw = str(f, "budget");
-  const budgetCents = budgetRaw ? parseAmountInput(budgetRaw) : null;
   if (!name) return { error: "Dê um nome à categoria." };
   try {
-    await data.upsertCategory({ id, name, emoji, budgetCents });
+    // O valor previsto por mês agora é uma meta da categoria (tela Metas)
+    await data.upsertCategory({ id, name, emoji });
   } catch {
     return { error: "Já existe uma categoria com esse nome." };
   }

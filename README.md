@@ -19,10 +19,16 @@ O que tem:
   pagamento, onde você mais gasta, maiores gastos, dia da semana, de onde veio o dinheiro e uma análise em texto
   (média, mediana, desvio padrão, tendência, mês mais caro e projeção do ano). Toque ou passe o mouse nas colunas
   para ver os valores; a tabela mês a mês fica no fim da página.
+- **Metas**: limites de gasto do mês (total, dia a dia, fatura do cartão ou por categoria), limites do ano e metas de
+  guardar dinheiro (quanto sobra no mês ou no ano). A tela mostra quanto ainda dá para gastar (e quanto por dia), o
+  status de cada meta (no caminho, atenção, passou), o histórico dos últimos 6 meses e, nas metas do ano, uma coluna por
+  mês. Ao criar, sugere a média dos últimos meses. Mudar o valor vale do mês na tela em diante (os meses que passaram
+  ficam com o valor antigo). As metas também aparecem no Painel (cartão "Metas" e as metas das categorias em "Por
+  categoria") e na janela de lançar, que mostra como o gasto mexe nas metas do mês antes de salvar.
 - **Ajustes**: formas de pagamento (o "Tipo" da planilha: Conta Corrente, Crédito, Pix, outros cartões, cada cartão com
-  seu dia de fechamento), categorias (com valor previsto por mês, opcional) e importação da planilha.
+  seu dia de fechamento), categorias e importação da planilha.
 - **Criar conta**: tela de cadastro com e-mail e senha. Cada conta tem os próprios dados.
-- Funciona no celular (barra embaixo; Ajustes fica na engrenagem do Painel) e no computador (menu lateral), sempre em
+- Funciona no celular (barra embaixo; Metas e Ajustes ficam nos ícones do topo do Painel) e no computador (menu lateral), sempre em
   uma coluna. Ao ver outro mês, o botão "Voltar para novembro" leva de volta ao mês atual.
 
 ## Configurar o Supabase (uma vez)

@@ -5,6 +5,8 @@ import { saveEntry, saveIncome, type FormState } from "@/app/actions";
 import { formatBRL, formatShortDate, monthLabel, referenceMonth, shiftMonth } from "@/lib/format";
 import { centsText, nextCents } from "@/lib/money-mask";
 import { LogoLoader } from "./LogoLoader";
+import { GoalImpact } from "./GoalImpact";
+import type { GoalHint } from "@/lib/goals";
 
 export interface CategoryOption {
   id: number;
@@ -135,7 +137,7 @@ export function Segmented<T extends string>({
  * se ajustam sozinhos (4 5 9 0 → 45,90). Abre o teclado numérico no celular.
  * Enter passa para o próximo campo.
  */
-function AmountField({
+export function AmountField({
   cents,
   onChange,
   negative,
@@ -607,6 +609,7 @@ export function ExpenseForm({
   hasRecurring,
   mode = "page",
   onDone,
+  goalHints,
 }: {
   categories: CategoryOption[];
   suggestions: SuggestionOption[];
@@ -616,6 +619,8 @@ export function ExpenseForm({
   hasRecurring?: boolean;
   mode?: FormMode;
   onDone?: (again: boolean) => void;
+  /** Metas do mês atual e do próximo, para mostrar como o gasto mexe nelas (só ao lançar). */
+  goalHints?: GoalHint[];
   entry?: {
     id: number;
     kind: "fixo" | "cartao" | "avulso";
@@ -746,6 +751,17 @@ export function ExpenseForm({
             setCategoryId(id);
           }}
         />
+
+        {!entry && goalHints && goalHints.length > 0 && (
+          <GoalImpact
+            hints={goalHints}
+            month={month}
+            categoryId={categoryId}
+            onCard={!!method?.isCredit}
+            avulso={activePlan === "avista"}
+            delta={(negative ? -1 : 1) * (activePlan === "parcelado" ? perInstallment : cents)}
+          />
+        )}
 
         <Group>
           <Row label="Pagamento">

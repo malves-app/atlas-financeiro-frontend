@@ -2,6 +2,7 @@ import { getSupabase, type Supabase } from "./supabase/server";
 import { currentMonth, dateInMonth, monthDiff, nextPaymentColor, PAYMENT_COLORS, shiftMonth, todayISO } from "./format";
 import { must } from "./must";
 import { isRealized } from "./realized";
+import { totalsFromRows, type Goal, type GoalKind, type GoalPeriod, type MonthTotals } from "./goals";
 
 // Toda leitura e escrita passa pelo Supabase com a sessão de quem está logado.
 // As regras de segurança (RLS) do banco garantem que cada usuário só acessa os próprios dados.
@@ -260,13 +261,12 @@ export async function listCategoriesByUse(): Promise<Category[]> {
   return [...cats].sort((a, b) => (uses.get(b.id) ?? 0) - (uses.get(a.id) ?? 0) || a.sort - b.sort);
 }
 
-export async function upsertCategory(c: { id?: number; name: string; emoji: string; budgetCents: number | null }) {
+/** O valor previsto por mês virou meta da categoria (Metas); budgetCents só é gravado quando vem. */
+export async function upsertCategory(c: { id?: number; name: string; emoji: string; budgetCents?: number | null }) {
   const sb = await getSupabase();
+  const budget = c.budgetCents !== undefined ? { budget_cents: c.budgetCents } : {};
   if (c.id) {
-    must(
-      await sb.from("categories").update({ name: c.name, emoji: c.emoji, budget_cents: c.budgetCents }).eq("id", c.id),
-      "salvar a categoria",
-    );
+    must(await sb.from("categories").update({ name: c.name, emoji: c.emoji, ...budget }).eq("id", c.id), "salvar a categoria");
     return;
   }
   const last = must(await sb.from("categories").select("sort").order("sort", { ascending: false }).limit(1), "ler as categorias") as {
@@ -274,11 +274,18 @@ export async function upsertCategory(c: { id?: number; name: string; emoji: stri
   }[];
   must(
     await sb.from("categories").upsert(
-      { name: c.name, emoji: c.emoji, budget_cents: c.budgetCents, archived: false, sort: (last[0]?.sort ?? 0) + 1 },
+      { name: c.name, emoji: c.emoji, ...budget, archived: false, sort: (last[0]?.sort ?? 0) + 1 },
       { onConflict: "user_id,name" },
     ),
     "criar a categoria",
   );
+}
+
+/** Nome e emoji de todas as categorias, inclusive as removidas (para metas e históricos). */
+export async function categoryNames(): Promise<Map<number, { name: string; emoji: string }>> {
+  const sb = await getSupabase();
+  const rows = must(await sb.from("categories").select("id, name, emoji"), "ler as categorias") as R[];
+  return new Map(rows.map((r) => [Number(r.id), { name: String(r.name), emoji: String(r.emoji) }]));
 }
 
 export async function archiveCategory(id: number) {
@@ -724,4 +731,95 @@ export async function hasAnyData(): Promise<boolean> {
   const sb = await getSupabase();
   const rows = must(await sb.from("entries").select("id").limit(1), "ler os gastos") as R[];
   return rows.length > 0;
+}
+
+/* ---------- metas ---------- */
+
+const toGoal = (r: R): Goal => ({
+  id: Number(r.id),
+  kind: r.kind as GoalKind,
+  period: r.period as GoalPeriod,
+  categoryId: num(r.category_id),
+  targetCents: Number(r.target_cents),
+  startMonth: String(r.start_month),
+  endMonth: (r.end_month as string) ?? null,
+});
+
+export async function listGoals(): Promise<Goal[]> {
+  const sb = await getSupabase();
+  const rows = must(await sb.from("goals").select("*").order("start_month").order("id"), "ler as metas") as R[];
+  return rows.map(toGoal);
+}
+
+export async function getGoal(id: number): Promise<Goal | null> {
+  const sb = await getSupabase();
+  const row = must(await sb.from("goals").select("*").eq("id", id).maybeSingle(), "ler a meta") as R | null;
+  return row ? toGoal(row) : null;
+}
+
+export async function createGoal(g: Omit<Goal, "id">) {
+  const sb = await getSupabase();
+  must(
+    await sb.from("goals").insert({
+      kind: g.kind,
+      period: g.period,
+      category_id: g.categoryId,
+      target_cents: g.targetCents,
+      start_month: g.startMonth,
+      end_month: g.endMonth,
+    }),
+    "criar a meta",
+  );
+}
+
+/**
+ * Muda o valor de uma meta a partir de um mês. Meta do mês que começou antes: a versão antiga vai até o mês
+ * anterior e uma nova começa no mês (os meses que passaram continuam com o valor da época).
+ */
+export async function updateGoal(id: number, targetCents: number, fromMonth: string) {
+  const sb = await getSupabase();
+  const g = await getGoal(id);
+  if (!g) return;
+  if (g.period === "ano" || g.startMonth >= fromMonth) {
+    must(await sb.from("goals").update({ target_cents: targetCents }).eq("id", id), "salvar a meta");
+    return;
+  }
+  if (g.endMonth != null && g.endMonth < fromMonth) return; // já tinha acabado antes deste mês
+  must(await sb.from("goals").update({ end_month: shiftMonth(fromMonth, -1) }).eq("id", id), "salvar a meta");
+  await createGoal({ ...g, targetCents, startMonth: fromMonth });
+}
+
+/** Encerra uma meta a partir de um mês (ela some deste mês em diante; os meses anteriores ficam). */
+export async function endGoal(id: number, fromMonth: string) {
+  const sb = await getSupabase();
+  const g = await getGoal(id);
+  if (!g) return;
+  if (g.period === "ano" || g.startMonth >= fromMonth) {
+    must(await sb.from("goals").delete().eq("id", id), "apagar a meta");
+    return;
+  }
+  must(await sb.from("goals").update({ end_month: shiftMonth(fromMonth, -1) }).eq("id", id), "encerrar a meta");
+}
+
+/** Totais de cada mês do intervalo (gastos, dia a dia, cartão, categorias e entradas) para as metas. */
+export async function getMonthTotals(from: string, to: string): Promise<Map<string, MonthTotals>> {
+  const sb = await getSupabase();
+  const rows = must(await sb.rpc("fm_month_totals", { p_from: from, p_to: to }), "somar os meses") as Parameters<
+    typeof totalsFromRows
+  >[0];
+  return totalsFromRows(rows ?? []);
+}
+
+/** Os totais de um mês já carregado (getMonth), no formato das metas. */
+export function monthTotalsOf(s: MonthSummary): MonthTotals {
+  const byCategory: Record<number, number> = {};
+  for (const c of s.byCategory) if (c.categoryId != null) byCategory[c.categoryId] = c.total;
+  return {
+    month: s.month,
+    gastos: s.totals.gastos,
+    avulso: s.totals.avulso,
+    credito: s.totals.credito,
+    entradas: s.totals.entradas,
+    byCategory,
+  };
 }

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { currentMonth, isMonth, monthDiff, monthLabel } from "@/lib/format";
 import type { RouteKey } from "@/lib/routes";
 import { Bone, SkeletonScreen, TextBone } from "./Skeleton";
-import { FixosHeader, LancamentosHeader, PainelHeader, ShareGlyph } from "./PageHeaders";
+import { FixosHeader, LancamentosHeader, MetasHeader, PainelHeader, ShareGlyph } from "./PageHeaders";
 import { usePendingNav } from "./NavState";
 import { Panel } from "./ui";
 
@@ -601,6 +601,122 @@ export function EstatisticasBodySkeleton({ months: monthsProp }: { months?: numb
   );
 }
 
+/* -------------------------------- Metas -------------------------------- */
+
+export function MetasSkeleton({ url }: { url?: URL }) {
+  const month = monthOf(useUrlParams(url));
+  return (
+    <SkeletonScreen>
+      <MetasHeader month={month} />
+      <MetasBodySkeleton />
+    </SkeletonScreen>
+  );
+}
+
+function GoalCardBone({ i }: { i: number }) {
+  return (
+    <div className="rounded-[20px] bg-surface p-4 lg:p-5">
+      <div className="flex items-start gap-3">
+        <Bone className="block size-[46px] shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <TextBone size={16} w={NAMES[i % NAMES.length]} />
+              <TextBone size={13} w="w-24" />
+            </div>
+            <Bone className="block h-[24px] w-[84px] rounded-full" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <TextBone size={22} w="w-40" lineHeight={33} />
+        <TextBone size={13} w="w-8" />
+      </div>
+      <Bone className="mt-2 block h-2.5 w-full rounded-full" />
+      <TextBone size={14} w="w-4/5" className="mt-2.5" lineHeight={20} />
+    </div>
+  );
+}
+
+export function MetasBodySkeleton() {
+  return (
+    <SkeletonScreen className="flex flex-col gap-3 lg:gap-4">
+      <section className="mx-3 overflow-hidden rounded-[24px] bg-ink p-5 lg:mx-0 lg:p-7">
+        <div className="flex items-center justify-between">
+          <TextBone dark w="w-36" />
+          <Bone dark className="block h-[30px] w-28 rounded-full" />
+        </div>
+        <TextBone dark size={14} w="w-32" className="mt-3" />
+        <span className="mt-0.5 flex items-center" style={{ height: "calc(0.95 * clamp(40px, 11.5vw, 60px))" }}>
+          <Bone dark className="block h-[78%] w-[58%] max-w-72 rounded-2xl" />
+        </span>
+        <Bone dark className="mt-5 block h-3 w-full rounded-full" />
+        <div className="mt-6 flex justify-between">
+          <TextBone dark size={13} w="w-32" />
+          <TextBone dark size={13} w="w-32" />
+        </div>
+        <Bone dark className="mt-3 block h-[30px] w-72 max-w-full rounded-full" />
+      </section>
+      <div className="mt-2">
+        <div className="px-4 pb-2 lg:px-1">
+          <TextBone w="w-16" />
+        </div>
+        <div className="grid gap-3 px-3 lg:grid-cols-2 lg:gap-4 lg:px-0">
+          {[1, 2, 3, 4].map((i) => (
+            <GoalCardBone key={i} i={i} />
+          ))}
+        </div>
+      </div>
+    </SkeletonScreen>
+  );
+}
+
+/** Nova meta (/metas/nova) e editar meta (/metas/[id]). */
+export function MetaFormSkeleton({ url, isNew = false }: { url?: URL; isNew?: boolean }) {
+  const month = monthOf(useUrlParams(url));
+  return (
+    <SkeletonScreen className="lg:mx-auto lg:max-w-xl">
+      <header className="flex items-center gap-2 px-2 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:px-0 lg:pt-2 lg:pb-4">
+        <Link href={`/metas?m=${month}`} aria-label="Voltar" className="grid size-10 place-items-center rounded-full text-ink-2 hover:bg-surface">
+          <BackGlyph />
+        </Link>
+        <h1 className="display text-[20px] font-bold">{isNew ? "Nova meta" : "Editar meta"}</h1>
+      </header>
+      {isNew ? (
+        <div className="space-y-6 px-5 pt-2">
+          <div>
+            <TextBone size={14} w="w-32" className="mb-2" />
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-2xl bg-surface p-3 ring-1 ring-line last:col-span-2 lg:last:col-span-1">
+                  <Bone className="block size-9 rounded-full" />
+                  <TextBone w={NAMES[i]} className="mt-2" />
+                  <TextBone size={12.5} w="w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <TextBone size={14} w="w-16" className="mb-2" />
+            <Bone className="block h-[46px] w-full rounded-full" />
+          </div>
+        </div>
+      ) : (
+        <div className="px-3 pb-4 lg:px-0">
+          <GoalCardBone i={0} />
+        </div>
+      )}
+      <div className={`${isNew ? "mt-6" : "mt-1"} mx-3 rounded-[24px] bg-surface/70 px-5 pt-6 pb-5 lg:mx-5`}>
+        <TextBone size={13} w="w-48" className="mx-auto" />
+        <Bone className="mx-auto mt-2 block h-12 w-48 rounded-2xl" />
+      </div>
+      <div className="mt-5 px-5">
+        <Bone className="block h-[52px] w-full rounded-full" />
+      </div>
+    </SkeletonScreen>
+  );
+}
+
 /* ------------------------------- Ajustes ------------------------------- */
 
 export function AjustesSkeleton() {
@@ -957,6 +1073,12 @@ export function RouteSkeleton({ route, url }: { route: RouteKey; url?: URL }) {
       return <FixoFormSkeleton url={url} />;
     case "estatisticas":
       return <EstatisticasSkeleton url={url} />;
+    case "metas":
+      return <MetasSkeleton url={url} />;
+    case "meta-nova":
+      return <MetaFormSkeleton url={url} isNew />;
+    case "meta":
+      return <MetaFormSkeleton url={url} />;
     case "ajustes":
       return <AjustesSkeleton />;
     case "novo":

@@ -17,6 +17,8 @@ const MESSAGES: Record<string, string> = {
   excluido: "Lançamento excluído",
   excluida: "Entrada excluída",
   "pagamento-minimo": "Mantenha pelo menos uma forma de pagamento",
+  meta: "Meta salva",
+  "meta-encerrada": "Meta encerrada",
 };
 
 /** Mostra o aviso sem mudar de página (usado pela janela de lançar). */

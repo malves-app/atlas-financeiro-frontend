@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getUserEmail, listCategories, listPaymentMethods } from "@/lib/data";
 import { logout } from "@/app/actions";
 import { Panel, SectionTitle } from "@/components/ui";
@@ -53,7 +54,11 @@ export default async function Ajustes() {
           <Panel>
             <SectionTitle>Categorias</SectionTitle>
             <p className="-mt-1 px-4 pb-2 text-[14px] text-ink-2">
-              Toque para mudar nome, emoji ou o valor previsto por mês. O previsto aparece no painel.
+              Toque para mudar nome ou emoji. Quanto gastar em cada categoria por mês fica em{" "}
+              <Link href="/metas/nova?tipo=categoria" className="font-semibold text-brand">
+                Metas
+              </Link>
+              .
             </p>
             <ul className="pb-1">
               {categories.map((c) => (
