@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as data from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { isMonth, monthPhrase, parseAmountInput, referenceMonth, currentMonth } from "@/lib/format";
+import { formatBRL, formatShortDate, isMonth, monthPhrase, parseAmountInput, referenceMonth, currentMonth, todayISO } from "@/lib/format";
+import * as inv from "@/lib/investments-data";
+import { isInvestmentKind, isMoveKind, position } from "@/lib/investments";
 import { findConflict, isGoalKind, KIND_INFO } from "@/lib/goals";
 import { importFromGoogleSheet, type ImportReport } from "@/lib/import/sheet";
 
@@ -257,6 +259,7 @@ export async function saveGoal(_: FormState, f: FormData): Promise<FormState> {
           : "Você já tem essa meta. Abra ela na lista de metas para mudar o valor.",
     };
   await data.createGoal(goal);
+  if (isModal(f)) return modalDone(f); // janela: fecha e a página de baixo se atualiza
   // Meta de outro ano: abre a tela em janeiro daquele ano, onde ela aparece
   const view = period === "ano" && String(year) !== month.slice(0, 4) ? `${year}-01` : month;
   done(`/metas?m=${view}&ok=meta`);
@@ -267,6 +270,89 @@ export async function endGoalAction(f: FormData) {
   const month = isMonth(str(f, "month")) ? str(f, "month") : currentMonth();
   if (id) await data.endGoal(id, month);
   done(`/metas?m=${month}&ok=meta-encerrada`);
+}
+
+/* ---------- investimentos ---------- */
+// À parte do resto: não mexe no saldo do mês, nas metas nem nas estatísticas.
+
+export async function saveInvestment(_: FormState, f: FormData): Promise<FormState> {
+  const id = optInt(f, "id");
+  const name = str(f, "name").slice(0, 80);
+  const kind = str(f, "kind");
+  const institution = str(f, "institution").slice(0, 60) || null;
+  const target = parseAmountInput(str(f, "target"));
+  if (!isInvestmentKind(kind)) return { error: "Escolha o tipo de investimento." };
+  if (!name) return { error: "Dê um nome (ex.: Caixinha, CDB, Bitcoin)." };
+  const input = { name, kind, institution, targetCents: target != null && target > 0 ? target : null };
+
+  if (id) {
+    if (!(await inv.getInvestment(id))) return { error: "Esse investimento não existe mais." };
+    await inv.updateInvestment(id, input);
+    done(`/investimentos/${id}?ok=investimento`);
+  }
+
+  const initial = parseAmountInput(str(f, "amount")) ?? 0;
+  if (initial < 0) return { error: "O valor não pode ser negativo." };
+  const newId = await inv.createInvestment(input);
+  // O valor de hoje entra como o primeiro aporte: o rendimento passa a contar daqui
+  if (initial > 0) await inv.createMove({ investmentId: newId, kind: "aporte", amountCents: initial, date: todayISO(), note: "Valor inicial" });
+  if (isModal(f)) return modalDone(f); // janela: fecha e a lista de baixo se atualiza
+  done(`/investimentos/${newId}?ok=investimento`);
+}
+
+export async function saveMove(_: FormState, f: FormData): Promise<FormState> {
+  const investmentId = optInt(f, "investmentId");
+  const kind = str(f, "kind");
+  const amount = parseAmountInput(str(f, "amount"));
+  const date = validDate(str(f, "date"));
+  const note = str(f, "note").slice(0, 140) || null;
+  const today = todayISO();
+  if (!investmentId) return { error: "Investimento não encontrado." };
+  if (!isMoveKind(kind)) return { error: "Escolha o que aconteceu." };
+  if (amount == null || amount <= 0) return { error: kind === "saldo" ? "Informe quanto tem hoje." : "Informe o valor." };
+  if (!date) return { error: "Escolha a data." };
+  if (date > today) return { error: "A data não pode ser depois de hoje." };
+  const investment = await inv.getInvestment(investmentId);
+  if (!investment) return { error: "Esse investimento não existe mais." };
+  if (investment.archived) return { error: "Reabra o investimento para registrar movimentações." };
+  if (kind === "resgate") {
+    const { balance } = position(await inv.listMoves(investmentId), date);
+    if (amount > balance)
+      return { error: `O resgate é maior que o saldo ${date === today ? "de hoje" : `em ${formatShortDate(date)}`} (${formatBRL(balance)}).` };
+  }
+  await inv.createMove({ investmentId, kind, amountCents: amount, date, note });
+  // A página continua aberta: o formulário se limpa sozinho
+  revalidatePath("/", "layout");
+  return { ok: true, at: Date.now() };
+}
+
+export async function deleteMoveAction(f: FormData) {
+  const id = optInt(f, "id");
+  if (id) await inv.deleteMove(id);
+  revalidatePath("/", "layout");
+}
+
+/** Encerrar: resgata o que sobrou (hoje) e tira da lista. O histórico continua na evolução. */
+export async function closeInvestmentAction(f: FormData) {
+  const id = optInt(f, "id");
+  const investment = id ? await inv.getInvestment(id) : null;
+  if (!investment) done("/investimentos");
+  const { balance } = position(await inv.listMoves(investment.id));
+  if (balance > 0) await inv.createMove({ investmentId: investment.id, kind: "resgate", amountCents: balance, date: todayISO(), note: "Encerramento" });
+  await inv.setInvestmentArchived(investment.id, true);
+  done("/investimentos?ok=investimento-encerrado");
+}
+
+export async function reopenInvestmentAction(f: FormData) {
+  const id = optInt(f, "id");
+  if (id) await inv.setInvestmentArchived(id, false);
+  done(id ? `/investimentos/${id}?ok=investimento-reaberto` : "/investimentos");
+}
+
+export async function deleteInvestmentAction(f: FormData) {
+  const id = optInt(f, "id");
+  if (id) await inv.deleteInvestment(id);
+  done("/investimentos?ok=investimento-apagado");
 }
 
 /* ---------- ajustes ---------- */

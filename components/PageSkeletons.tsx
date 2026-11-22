@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { currentMonth, isMonth, monthDiff, monthLabel } from "@/lib/format";
 import type { RouteKey } from "@/lib/routes";
 import { Bone, SkeletonScreen, TextBone } from "./Skeleton";
-import { FixosHeader, LancamentosHeader, MetasHeader, PainelHeader, ShareGlyph } from "./PageHeaders";
+import { FixosHeader, InvestimentosHeader, InvestimentoTopBar, LancamentosHeader, MetasHeader, PainelHeader, ShareGlyph } from "./PageHeaders";
 import { usePendingNav } from "./NavState";
 import { Panel } from "./ui";
 
@@ -60,6 +60,18 @@ function CloseGlyph() {
     <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
       <path d="M6 6l12 12M18 6L6 18" />
     </svg>
+  );
+}
+
+/** Cabeçalho das janelas de criar (igual ao SheetHeader de components/Modal.tsx). */
+function SheetHeaderBone({ title }: { title: string }) {
+  return (
+    <header className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-paper/90 px-5 pt-2 pb-2 backdrop-blur-md lg:pt-5">
+      <h2 className="display text-[20px] font-bold">{title}</h2>
+      <span className="grid size-10 place-items-center rounded-full bg-surface text-ink-2 ring-1 ring-line/80" aria-hidden>
+        <CloseGlyph />
+      </span>
+    </header>
   );
 }
 
@@ -672,16 +684,20 @@ export function MetasBodySkeleton() {
 }
 
 /** Nova meta (/metas/nova) e editar meta (/metas/[id]). */
-export function MetaFormSkeleton({ url, isNew = false }: { url?: URL; isNew?: boolean }) {
+export function MetaFormSkeleton({ url, isNew = false, mode = "page" }: { url?: URL; isNew?: boolean; mode?: FormMode }) {
   const month = monthOf(useUrlParams(url));
   return (
-    <SkeletonScreen className="lg:mx-auto lg:max-w-xl">
-      <header className="flex items-center gap-2 px-2 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:px-0 lg:pt-2 lg:pb-4">
-        <Link href={`/metas?m=${month}`} aria-label="Voltar" className="grid size-10 place-items-center rounded-full text-ink-2 hover:bg-surface">
-          <BackGlyph />
-        </Link>
-        <h1 className="display text-[20px] font-bold">{isNew ? "Nova meta" : "Editar meta"}</h1>
-      </header>
+    <SkeletonScreen className={mode === "modal" ? "" : "lg:mx-auto lg:max-w-xl"}>
+      {mode === "modal" ? (
+        <SheetHeaderBone title="Nova meta" />
+      ) : (
+        <header className="flex items-center gap-2 px-2 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:px-0 lg:pt-2 lg:pb-4">
+          <Link href={`/metas?m=${month}`} aria-label="Voltar" className="grid size-10 place-items-center rounded-full text-ink-2 hover:bg-surface">
+            <BackGlyph />
+          </Link>
+          <h1 className="display text-[20px] font-bold">{isNew ? "Nova meta" : "Editar meta"}</h1>
+        </header>
+      )}
       {isNew ? (
         <div className="space-y-6 px-5 pt-2">
           <div>
@@ -711,6 +727,169 @@ export function MetaFormSkeleton({ url, isNew = false }: { url?: URL; isNew?: bo
         <Bone className="mx-auto mt-2 block h-12 w-48 rounded-2xl" />
       </div>
       <div className="mt-5 px-5">
+        <Bone className="block h-[52px] w-full rounded-full" />
+      </div>
+    </SkeletonScreen>
+  );
+}
+
+/* ---------------------------- Investimentos ---------------------------- */
+
+function InvCardBone({ i }: { i: number }) {
+  return (
+    <div className="rounded-[20px] bg-surface p-4 lg:p-5">
+      <div className="flex items-center gap-3">
+        <Bone className="block size-11 shrink-0 rounded-[14px]" />
+        <div className="min-w-0 flex-1">
+          <TextBone size={16} w={NAMES[i % NAMES.length]} />
+          <TextBone size={13} w={SUBS[i % SUBS.length]} />
+        </div>
+        <div className="flex flex-col items-end">
+          <TextBone size={19} w="w-24" lineHeight={24} />
+          <TextBone size={12.5} w="w-20" />
+        </div>
+      </div>
+      <div className="mt-3 border-t border-line/70 pt-2.5">
+        <TextBone size={12.5} w="w-36" />
+      </div>
+    </div>
+  );
+}
+
+function InvHeroBone({ wide = false }: { wide?: boolean }) {
+  return (
+    <section
+      className={`mx-3 rounded-[24px] bg-ink p-5 lg:mx-0 lg:p-7 ${wide ? "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:items-end lg:gap-10" : ""}`}
+    >
+      <div>
+        <TextBone dark w="w-32" />
+        <span className="mt-2 flex items-center" style={{ height: "calc(0.95 * clamp(40px, 11.5vw, 60px))" }}>
+          <Bone dark className="block h-[78%] w-[62%] max-w-72 rounded-2xl" />
+        </span>
+        <TextBone dark size={14} w="w-44" className="mt-3" />
+        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+          <div>
+            <TextBone dark size={12.5} w="w-16" />
+            <TextBone dark size={16} w="w-24" />
+          </div>
+          <div>
+            <TextBone dark size={12.5} w="w-24" />
+            <TextBone dark size={16} w="w-20" />
+          </div>
+        </div>
+      </div>
+      <Bone dark className={`mt-6 block w-full rounded-2xl ${wide ? "h-[170px] lg:mt-0" : "h-[150px]"}`} />
+    </section>
+  );
+}
+
+export function InvestimentosSkeleton() {
+  return (
+    <SkeletonScreen>
+      <InvestimentosHeader />
+      <div className="flex flex-col gap-3 lg:gap-4">
+        <InvHeroBone wide />
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-4">
+          <div>
+            <div className="px-4 pt-2 pb-2 lg:px-1 lg:pt-1">
+              <TextBone w="w-36" />
+            </div>
+            <div className="grid gap-3 px-3 lg:px-0 2xl:grid-cols-2">
+              {[0, 1, 2].map((i) => (
+                <InvCardBone key={i} i={i} />
+              ))}
+            </div>
+          </div>
+          <div className="mx-3 rounded-[24px] bg-surface p-4 lg:mx-0 lg:p-5">
+            <TextBone w="w-40" />
+            <Bone className="mt-3 block h-3 w-full rounded-full" />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center justify-between py-2.5">
+                <TextBone size={14.5} w={NAMES[i]} />
+                <TextBone size={14.5} w="w-20" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </SkeletonScreen>
+  );
+}
+
+/** Detalhe de um investimento (/investimentos/[id]). */
+export function InvestimentoSkeleton() {
+  return (
+    <SkeletonScreen>
+      <InvestimentoTopBar title={<TextBone size={20} w="w-44" lineHeight={30} />} back="/investimentos" />
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-4">
+        <div className="lg:col-start-1 lg:row-start-1">
+          <InvHeroBone />
+        </div>
+        <div className="mx-3 rounded-[24px] bg-surface p-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mx-0 lg:p-5">
+          <TextBone w="w-48" />
+          <Bone className="mt-3 block h-[42px] w-full rounded-full" />
+          <TextBone size={13} w="w-56" className="mt-2" />
+          <Bone className="mx-auto mt-5 block h-12 w-48 rounded-2xl" />
+          <Bone className="mt-8 block h-[40px] w-64 max-w-full rounded-full" />
+          <Bone className="mt-4 block h-[48px] w-full rounded-2xl" />
+          <Bone className="mt-4 block h-[52px] w-full rounded-full" />
+        </div>
+        <div className="mx-3 rounded-[24px] bg-surface pb-2 lg:col-start-1 lg:row-start-2 lg:mx-0">
+          <div className="px-4 pt-4 lg:px-5">
+            <TextBone w="w-24" />
+          </div>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3 lg:px-5">
+              <Bone className="block size-10 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1">
+                <TextBone w={NAMES[i]} />
+                <TextBone size={13} w={SUBS[i]} />
+              </div>
+              <TextBone w={AMOUNTS[i]} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </SkeletonScreen>
+  );
+}
+
+/** Novo investimento e editar investimento. */
+export function InvestimentoFormSkeleton({ isNew = false, mode = "page" }: { isNew?: boolean; mode?: FormMode }) {
+  return (
+    <SkeletonScreen className={mode === "modal" ? "" : "lg:mx-auto lg:max-w-xl"}>
+      {mode === "modal" ? (
+        <SheetHeaderBone title="Novo investimento" />
+      ) : (
+        <InvestimentoTopBar title={isNew ? "Novo investimento" : "Editar investimento"} back="/investimentos" />
+      )}
+      <div className="space-y-6 px-5 pt-2">
+        <div>
+          <TextBone size={14} w="w-10" className="mb-2" />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div key={i} className="flex items-center gap-2.5 rounded-2xl bg-surface px-3 py-2.5 ring-1 ring-line">
+                <Bone className="block size-9 shrink-0 rounded-xl" />
+                <TextBone size={14} w={SUBS[i % SUBS.length]} />
+              </div>
+            ))}
+          </div>
+        </div>
+        {[0, 1].map((i) => (
+          <div key={i}>
+            <TextBone size={14} w="w-20" className="mb-2" />
+            <Bone className="block h-[48px] w-full rounded-2xl" />
+          </div>
+        ))}
+      </div>
+      {isNew && (
+        <div className="mx-3 mt-6 rounded-[24px] bg-surface/70 px-5 pt-6 pb-5 lg:mx-5">
+          <TextBone size={13} w="w-40" className="mx-auto" />
+          <Bone className="mx-auto mt-2 block h-12 w-48 rounded-2xl" />
+        </div>
+      )}
+      <div className="mt-5 space-y-4 px-5">
+        <Bone className="block h-[70px] w-full rounded-2xl" />
         <Bone className="block h-[52px] w-full rounded-full" />
       </div>
     </SkeletonScreen>
@@ -1079,6 +1258,14 @@ export function RouteSkeleton({ route, url }: { route: RouteKey; url?: URL }) {
       return <MetaFormSkeleton url={url} isNew />;
     case "meta":
       return <MetaFormSkeleton url={url} />;
+    case "investimentos":
+      return <InvestimentosSkeleton />;
+    case "investimento-novo":
+      return <InvestimentoFormSkeleton isNew />;
+    case "investimento":
+      return <InvestimentoSkeleton />;
+    case "investimento-editar":
+      return <InvestimentoFormSkeleton />;
     case "ajustes":
       return <AjustesSkeleton />;
     case "novo":
@@ -1094,5 +1281,7 @@ export function RouteSkeleton({ route, url }: { route: RouteKey; url?: URL }) {
 export function ModalSkeleton({ route, url }: { route: RouteKey; url?: URL }) {
   if (route === "lancamento") return <EntryEditorSkeleton mode="modal" />;
   if (route === "entrada") return <IncomeEditorSkeleton mode="modal" />;
+  if (route === "meta-nova") return <MetaFormSkeleton url={url} isNew mode="modal" />;
+  if (route === "investimento-novo") return <InvestimentoFormSkeleton isNew mode="modal" />;
   return <QuickAddSkeleton mode="modal" url={url} />;
 }

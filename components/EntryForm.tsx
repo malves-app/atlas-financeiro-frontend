@@ -333,7 +333,7 @@ function CategoryGrid({
 }
 
 /** Data com atalhos: Hoje, Ontem ou outra (abre o calendário do aparelho). */
-function DateChips({ value, onChange, today }: { value: string; onChange: (v: string) => void; today: string }) {
+export function DateChips({ value, onChange, today }: { value: string; onChange: (v: string) => void; today: string }) {
   const yesterday = shiftDate(today, -1);
   const other = !!value && value !== today && value !== yesterday;
   const chip = (active: boolean) =>

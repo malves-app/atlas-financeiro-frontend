@@ -13,6 +13,10 @@ export type RouteKey =
   | "metas"
   | "meta-nova"
   | "meta"
+  | "investimentos"
+  | "investimento-novo"
+  | "investimento"
+  | "investimento-editar"
   | "ajustes"
   | "novo";
 
@@ -28,6 +32,10 @@ const ROUTES: [RegExp, RouteKey][] = [
   [/^\/metas\/?$/, "metas"],
   [/^\/metas\/nova\/?$/, "meta-nova"],
   [/^\/metas\/\d+\/?$/, "meta"],
+  [/^\/investimentos\/?$/, "investimentos"],
+  [/^\/investimentos\/novo\/?$/, "investimento-novo"],
+  [/^\/investimentos\/\d+\/?$/, "investimento"],
+  [/^\/investimentos\/\d+\/editar\/?$/, "investimento-editar"],
   [/^\/ajustes\/?$/, "ajustes"],
   [/^\/novo\/?$/, "novo"],
 ];
@@ -38,7 +46,7 @@ export function matchRoute(pathname: string): RouteKey | null {
 }
 
 /** Abertas por cima da página atual (janela no computador, folha no celular). */
-const MODAL_ROUTES = new Set<RouteKey>(["novo", "lancamento", "entrada"]);
+const MODAL_ROUTES = new Set<RouteKey>(["novo", "lancamento", "entrada", "meta-nova", "investimento-novo"]);
 
 export function isModalRoute(route: RouteKey | null): boolean {
   return route != null && MODAL_ROUTES.has(route);

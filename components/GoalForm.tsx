@@ -15,8 +15,9 @@ import {
   type GoalKind,
   type GoalPeriod,
 } from "@/lib/goals";
-import { AmountField, Segmented, type CategoryOption } from "./EntryForm";
+import { AmountField, Segmented, type CategoryOption, type FormMode } from "./EntryForm";
 import { LogoLoader } from "./LogoLoader";
+import { useCloseOnSaved } from "./Modal";
 
 export interface GoalFormGoal {
   id: number;
@@ -39,6 +40,7 @@ export function GoalForm({
   avg,
   initialKind = "total",
   goal,
+  mode = "page",
 }: {
   /** Mês na tela: a meta do mês começa nele. */
   month: string;
@@ -49,8 +51,11 @@ export function GoalForm({
   avg: Averages | null;
   initialKind?: GoalKind;
   goal?: GoalFormGoal;
+  /** "modal": aberto na janela (fecha ao criar). */
+  mode?: FormMode;
 }) {
   const [state, action, pending] = useActionState(saveGoal, undefined);
+  useCloseOnSaved(state, "meta");
   const [kind, setKind] = useState<GoalKind>(goal?.kind ?? initialKind);
   const [periodChoice, setPeriod] = useState<GoalPeriod>(goal?.period ?? "mes");
   const monthYear = Number(month.slice(0, 4));
@@ -113,7 +118,8 @@ export function GoalForm({
     );
 
   return (
-    <form action={action} className="pb-6">
+    <form action={action} className={mode === "modal" ? "pb-[calc(env(safe-area-inset-bottom)+24px)]" : "pb-6"}>
+      <input type="hidden" name="mode" value={mode} />
       {goal && <input type="hidden" name="id" value={goal.id} />}
       <input type="hidden" name="month" value={month} />
       <input type="hidden" name="kind" value={kind} />

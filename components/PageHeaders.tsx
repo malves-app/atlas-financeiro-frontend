@@ -39,6 +39,13 @@ export function PainelHeader({
               <TargetGlyph className="size-[22px]" />
             </Link>
             <Link
+              href="/investimentos"
+              aria-label="Investimentos"
+              className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/70 lg:hidden"
+            >
+              <InvestGlyph className="size-[22px]" />
+            </Link>
+            <Link
               href="/ajustes"
               aria-label="Ajustes"
               className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/70 lg:hidden"
@@ -155,5 +162,61 @@ export function MetasHeader({ month }: { month: string }) {
       </header>
       <BackToCurrentMonth month={month} basePath="/metas" />
     </>
+  );
+}
+
+/** Investimentos (linha subindo): o mesmo ícone do menu. */
+export const INVEST_ICON = "M3 17l6-6 4 4 7.5-7.5M14 7.5h6.5V14";
+
+export function InvestGlyph({ className = "size-5", width = 1.8 }: { className?: string; width?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={INVEST_ICON} />
+    </svg>
+  );
+}
+
+/** Investimentos: não dependem do mês (sem seletor de mês). */
+export function InvestimentosHeader({ eye }: { eye?: React.ReactNode }) {
+  return (
+    <header className="flex items-center justify-between gap-2 px-4 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:px-0 lg:pt-2 lg:pb-3">
+      <h1 className="display text-[22px] font-bold tracking-tight lg:text-[28px]">Investimentos</h1>
+      <div className="flex items-center gap-1 lg:gap-3">
+        {eye}
+        <Link
+          href="/investimentos/novo"
+          className="hidden items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[14px] font-semibold text-white lg:inline-flex"
+        >
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Novo investimento
+        </Link>
+        <Link
+          href="/investimentos/novo"
+          aria-label="Novo investimento"
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-ink text-white lg:hidden"
+        >
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+/** Telas de um investimento (detalhe, novo, editar): voltar + título + ação à direita. */
+export function InvestimentoTopBar({ title, back, right }: { title: React.ReactNode; back: string; right?: React.ReactNode }) {
+  return (
+    <header className="flex items-center gap-2 px-2 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:px-0 lg:pt-2 lg:pb-4">
+      <Link href={back} aria-label="Voltar" className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-surface">
+        <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      </Link>
+      <h1 className="display min-w-0 flex-1 truncate text-[20px] font-bold">{title}</h1>
+      {right}
+    </header>
   );
 }

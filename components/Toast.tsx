@@ -19,6 +19,14 @@ const MESSAGES: Record<string, string> = {
   "pagamento-minimo": "Mantenha pelo menos uma forma de pagamento",
   meta: "Meta salva",
   "meta-encerrada": "Meta encerrada",
+  investimento: "Investimento salvo",
+  "investimento-encerrado": "Investimento encerrado",
+  "investimento-reaberto": "Investimento reaberto",
+  "investimento-apagado": "Investimento apagado",
+  aporte: "Aporte registrado",
+  resgate: "Resgate registrado",
+  "saldo-atualizado": "Saldo atualizado",
+  "movimentacao-excluida": "Movimentação excluída",
 };
 
 /** Mostra o aviso sem mudar de página (usado pela janela de lançar). */
