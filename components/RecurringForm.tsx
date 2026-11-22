@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { saveRecurring } from "@/app/actions";
 import { centsToInput } from "@/lib/format";
 import { PaymentPicker, defaultMethodId, type CategoryOption, type PaymentMethodOption } from "./EntryForm";
+import { LogoLoader } from "./LogoLoader";
 
 export function RecurringForm({
   categories,
@@ -182,7 +183,13 @@ export function RecurringForm({
         <p className="text-[13px] text-ink-3">As mudanças valem a partir deste mês, nos lançamentos ainda não pagos.</p>
       )}
 
-      <button type="submit" disabled={pending} className="w-full rounded-full bg-ink py-3.5 text-[16px] font-semibold text-white disabled:opacity-60">
+      <button
+        type="submit"
+        disabled={pending}
+        aria-busy={pending || undefined}
+        className="flex w-full items-center justify-center gap-2.5 rounded-full bg-ink py-3.5 text-[16px] font-semibold text-white disabled:opacity-90"
+      >
+        {pending && <LogoLoader className="size-5" />}
         {pending ? "Salvando…" : recurring ? "Salvar fixo" : "Adicionar fixo"}
       </button>
     </form>

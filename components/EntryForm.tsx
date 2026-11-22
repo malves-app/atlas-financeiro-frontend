@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { saveEntry, saveIncome, type FormState } from "@/app/actions";
 import { formatBRL, formatShortDate, monthLabel, referenceMonth, shiftMonth } from "@/lib/format";
 import { centsText, nextCents } from "@/lib/money-mask";
+import { LogoLoader } from "./LogoLoader";
 
 export interface CategoryOption {
   id: number;
@@ -512,10 +513,6 @@ function ErrorText({ state }: { state: FormState }) {
   );
 }
 
-function Spinner() {
-  return <span aria-hidden className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />;
-}
-
 function SubmitBar({ mode, children }: { mode: FormMode; children: React.ReactNode }) {
   return (
     <div
@@ -535,13 +532,14 @@ function SaveButton({ pending, tone, children }: { pending: boolean; tone: "ink"
     <button
       type="submit"
       disabled={pending}
-      className={`flex flex-1 items-center justify-center gap-2.5 rounded-full py-3.5 text-[16px] font-semibold text-white transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:translate-y-0 disabled:opacity-60 ${
+      aria-busy={pending || undefined}
+      className={`flex flex-1 items-center justify-center gap-2.5 rounded-full py-3.5 text-[16px] font-semibold text-white transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:translate-y-0 disabled:opacity-90 ${
         tone === "brand"
           ? "bg-brand shadow-[0_10px_24px_-12px_rgba(11,122,107,0.8)] hover:bg-[#0a8a78]"
           : "bg-ink shadow-[0_10px_24px_-12px_rgba(23,32,51,0.8)] hover:bg-[#222c44]"
       }`}
     >
-      {pending ? <Spinner /> : null}
+      {pending ? <LogoLoader tone={tone === "brand" ? "brand" : "dark"} className="size-5" /> : null}
       {pending ? "Salvando…" : children}
       {!pending && (
         <kbd className="hidden h-6 place-items-center rounded-md bg-white/15 px-1.5 font-sans text-[12px] font-semibold text-white/70 pointer-fine:grid" title="Enter">

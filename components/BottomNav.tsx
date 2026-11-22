@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
+import { startNavigation, usePendingNav } from "@/components/NavState";
 
 const STATS_ICON = "M4 20h16M7 16v-5M12 16V6M17 16v-8";
 
@@ -20,10 +21,13 @@ const items: { href: string; label: string; icon: string; primary?: boolean; des
 function useNav() {
   const pathname = usePathname();
   const sp = useSearchParams();
+  const pending = usePendingNav();
+  // No toque, o item do destino já fica marcado (janelas, como Lançar, não contam)
+  const path = pending.target && !pending.modal ? pending.target.pathname : pathname;
   const m = sp.get("m");
   return items.map((it) => ({
     ...it,
-    active: it.href === "/" ? pathname === "/" : pathname.startsWith(it.href),
+    active: it.href === "/" ? path === "/" : path.startsWith(it.href),
     href: m && it.href !== "/ajustes" && it.href !== "/estatisticas" ? `${it.href}?m=${m}` : it.href,
   }));
 }
@@ -136,6 +140,7 @@ export function LaunchButton() {
       if (t?.closest("input, textarea, select, [contenteditable=true], dialog[open]")) return;
       if (document.querySelector("dialog[open]")) return;
       e.preventDefault();
+      startNavigation(href);
       router.push(href);
     };
     window.addEventListener("keydown", onKey);

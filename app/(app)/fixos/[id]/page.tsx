@@ -5,6 +5,7 @@ import { monthLabel, monthPhrase, shiftMonth } from "@/lib/format";
 import { readParams, type SearchParams } from "@/lib/page";
 import { RecurringForm } from "@/components/RecurringForm";
 import { endRecurringAction } from "@/app/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +46,9 @@ export default async function EditarFixo({ params, searchParams }: { params: Pro
               </option>
             ))}
           </select>
-          <button type="submit" className="rounded-full bg-danger-soft px-4 py-2.5 text-[14px] font-semibold text-danger">
+          <SubmitButton tone="light" pendingLabel="Encerrando…" loaderClassName="size-4" className="rounded-full bg-danger-soft px-4 py-2.5 text-[14px] font-semibold text-danger">
             Encerrar
-          </button>
+          </SubmitButton>
         </div>
       </form>
     </div>

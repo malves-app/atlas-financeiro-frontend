@@ -5,6 +5,7 @@ import { Suspense, useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import { login } from "@/app/actions";
 import { AuthShell } from "@/components/AuthShell";
+import { LogoLoader } from "@/components/LogoLoader";
 
 function LoginForm() {
   const [state, action, pending] = useActionState(login, undefined);
@@ -35,7 +36,13 @@ function LoginForm() {
           {state.error}
         </p>
       )}
-      <button type="submit" disabled={pending} className="w-full rounded-full bg-ink py-3.5 text-[16px] font-semibold text-white disabled:opacity-60">
+      <button
+        type="submit"
+        disabled={pending}
+        aria-busy={pending || undefined}
+        className="flex w-full items-center justify-center gap-2.5 rounded-full bg-ink py-3.5 text-[16px] font-semibold text-white disabled:opacity-90"
+      >
+        {pending && <LogoLoader className="size-5" />}
         {pending ? "Entrando…" : "Entrar"}
       </button>
     </form>

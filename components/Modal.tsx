@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 type CloseFn = (opts?: { refresh?: boolean }) => void;
@@ -9,6 +9,17 @@ const ModalContext = createContext<CloseFn | null>(null);
 /** Fecha o modal em que o componente está (ou null se não estiver num modal). */
 export function useCloseModal() {
   return useContext(ModalContext);
+}
+
+/** Visual da janela (também usado pela folha de carregamento em components/RouteTransition.tsx). */
+export const SHEET_CLASS =
+  "fm-sheet fixed inset-x-0 top-auto bottom-0 m-0 hidden max-h-[94dvh] border-0 open:flex w-full max-w-none flex-col overflow-hidden rounded-t-[28px] bg-paper p-0 text-ink shadow-[0_30px_80px_-20px_rgba(23,32,51,0.55)] backdrop:bg-ink/40 backdrop:backdrop-blur-[3px] lg:inset-0 lg:m-auto lg:h-fit lg:max-h-[90vh] lg:w-[600px] lg:rounded-[28px] lg:ring-1 lg:ring-white/60";
+
+// Quando a folha de carregamento abre no toque, a janela de verdade chega um pouco depois:
+// ela continua a animação de onde a outra estava, em vez de subir de novo.
+let handoffAt: number | null = null;
+export function markSheetHandoff() {
+  handoffAt = performance.now();
 }
 
 /**
@@ -22,9 +33,16 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
   const refreshOnClose = useRef(false);
   const closing = useRef(false);
 
-  useEffect(() => {
+  // Antes da pintura: na troca com a folha de carregamento não pode haver um quadro sem janela.
+  useLayoutEffect(() => {
     const dialog = ref.current;
     if (dialog && !dialog.open) {
+      const elapsed = handoffAt == null ? Infinity : performance.now() - handoffAt;
+      handoffAt = null;
+      if (elapsed < 1500) {
+        dialog.dataset.handoff = "";
+        dialog.style.setProperty("--sheet-delay", `${-Math.round(elapsed)}ms`);
+      }
       dialog.showModal();
       // o navegador foca o primeiro botão; o certo é o campo de valor (abre o teclado numérico)
       dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
@@ -60,7 +78,7 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
         onClick={(e) => {
           if (e.target === ref.current) close();
         }}
-        className="fm-sheet fixed inset-x-0 top-auto bottom-0 m-0 hidden max-h-[94dvh] border-0 open:flex w-full max-w-none flex-col overflow-hidden rounded-t-[28px] bg-paper p-0 text-ink shadow-[0_30px_80px_-20px_rgba(23,32,51,0.55)] backdrop:bg-ink/40 backdrop:backdrop-blur-[3px] lg:inset-0 lg:m-auto lg:h-fit lg:max-h-[90vh] lg:w-[600px] lg:rounded-[28px] lg:ring-1 lg:ring-white/60"
+        className={SHEET_CLASS}
       >
         <div className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-line lg:hidden" aria-hidden />
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>

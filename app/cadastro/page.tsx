@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { signUp } from "@/app/actions";
 import { AuthShell } from "@/components/AuthShell";
+import { LogoLoader } from "@/components/LogoLoader";
 
 export default function CadastroPage() {
   const [state, action, pending] = useActionState(signUp, undefined);
@@ -48,7 +49,13 @@ export default function CadastroPage() {
             {state.error}
           </p>
         )}
-        <button type="submit" disabled={pending} className="w-full rounded-full bg-ink py-3.5 text-[16px] font-semibold text-white disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={pending}
+          aria-busy={pending || undefined}
+          className="flex w-full items-center justify-center gap-2.5 rounded-full bg-ink py-3.5 text-[16px] font-semibold text-white disabled:opacity-90"
+        >
+          {pending && <LogoLoader className="size-5" />}
           {pending ? "Criando conta…" : "Criar conta"}
         </button>
       </form>

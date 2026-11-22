@@ -3,6 +3,8 @@
 import { useActionState, useState } from "react";
 import { archiveCategoryAction, archivePaymentMethodAction, importSheetAction, saveCategory, savePaymentMethod } from "@/app/actions";
 import { centsToInput, formatBRL, monthLabel, PAYMENT_COLORS } from "@/lib/format";
+import { LogoLoader } from "./LogoLoader";
+import { SubmitButton } from "./SubmitButton";
 
 export function CategoryRow({ c }: { c?: { id: number; name: string; emoji: string; budgetCents: number | null } }) {
   const [open, setOpen] = useState(false);
@@ -47,8 +49,14 @@ export function CategoryRow({ c }: { c?: { id: number; name: string; emoji: stri
         </label>
         {state?.error && <p className="col-span-2 text-[14px] font-medium text-danger">{state.error}</p>}
         <div className="col-span-2 flex gap-2">
-          <button type="submit" disabled={pending} className="flex-1 rounded-full bg-ink py-2.5 text-[15px] font-semibold text-white">
-            Salvar
+          <button
+            type="submit"
+            disabled={pending}
+            aria-busy={pending || undefined}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ink py-2.5 text-[15px] font-semibold text-white disabled:opacity-90"
+          >
+            {pending && <LogoLoader className="size-[18px]" />}
+            {pending ? "Salvando…" : "Salvar"}
           </button>
           <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-line bg-surface px-4 py-2.5 text-[15px] font-semibold">
             Cancelar
@@ -58,9 +66,9 @@ export function CategoryRow({ c }: { c?: { id: number; name: string; emoji: stri
       {c && (
         <form action={archiveCategoryAction} className="mt-2">
           <input type="hidden" name="id" value={c.id} />
-          <button type="submit" className="text-[14px] font-medium text-danger">
+          <SubmitButton tone="light" pendingLabel="Removendo…" loaderClassName="size-4" className="text-[14px] font-medium text-danger">
             Remover categoria (os lançamentos antigos continuam com ela)
-          </button>
+          </SubmitButton>
         </form>
       )}
     </div>
@@ -156,8 +164,14 @@ export function PaymentMethodRow({
         </fieldset>
         {state?.error && <p className="text-[14px] font-medium text-danger">{state.error}</p>}
         <div className="flex gap-2">
-          <button type="submit" disabled={pending} className="flex-1 rounded-full bg-ink py-2.5 text-[15px] font-semibold text-white">
-            Salvar
+          <button
+            type="submit"
+            disabled={pending}
+            aria-busy={pending || undefined}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ink py-2.5 text-[15px] font-semibold text-white disabled:opacity-90"
+          >
+            {pending && <LogoLoader className="size-[18px]" />}
+            {pending ? "Salvando…" : "Salvar"}
           </button>
           <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-line bg-surface px-4 py-2.5 text-[15px] font-semibold">
             Cancelar
@@ -167,9 +181,9 @@ export function PaymentMethodRow({
       {m && (
         <form action={archivePaymentMethodAction} className="mt-2">
           <input type="hidden" name="id" value={m.id} />
-          <button type="submit" className="text-[14px] font-medium text-danger">
+          <SubmitButton tone="light" pendingLabel="Removendo…" loaderClassName="size-4" className="text-[14px] font-medium text-danger">
             Remover (os lançamentos antigos continuam com ela)
-          </button>
+          </SubmitButton>
         </form>
       )}
     </div>
@@ -194,7 +208,13 @@ export function ImportForm() {
         <input type="checkbox" name="confirm" className="mt-0.5 size-5 accent-[#0b7a6b]" />
         <span>Entendi: isso apaga os lançamentos do site e recria tudo a partir da planilha.</span>
       </label>
-      <button type="submit" disabled={pending} className="w-full rounded-full bg-ink py-3 text-[15px] font-semibold text-white disabled:opacity-60 lg:w-auto lg:px-8">
+      <button
+        type="submit"
+        disabled={pending}
+        aria-busy={pending || undefined}
+        className="flex w-full items-center justify-center gap-2.5 rounded-full bg-ink py-3 text-[15px] font-semibold text-white disabled:opacity-90 lg:w-auto lg:px-8"
+      >
+        {pending && <LogoLoader className="size-5" />}
         {pending ? "Importando… (leva alguns segundos)" : "Importar planilha"}
       </button>
       {state?.error && <p role="alert" className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-[14px] font-medium text-danger">{state.error}</p>}

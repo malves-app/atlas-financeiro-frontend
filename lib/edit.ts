@@ -4,9 +4,13 @@ import type { EntryEditorData, IncomeEditorData } from "@/components/EditEntry";
 
 /** Dados para editar um gasto (janela e página). null se não existir mais. */
 export async function loadEntryEditor(id: number): Promise<EntryEditorData | null> {
-  const entry = await getEntry(id);
+  const [entry, categories, suggestions, methods] = await Promise.all([
+    getEntry(id),
+    listCategories(),
+    getSuggestions(),
+    listPaymentMethods(),
+  ]);
   if (!entry) return null;
-  const [categories, suggestions, methods] = await Promise.all([listCategories(), getSuggestions(), listPaymentMethods()]);
   return {
     entry,
     recurringId: entry.recurringId,
@@ -19,9 +23,9 @@ export async function loadEntryEditor(id: number): Promise<EntryEditorData | nul
 
 /** Dados para editar uma entrada (janela e página). null se não existir mais. */
 export async function loadIncomeEditor(id: number): Promise<IncomeEditorData | null> {
-  const income = await getIncome(id);
+  const [income, suggestions] = await Promise.all([getIncome(id), getIncomeSuggestions()]);
   if (!income) return null;
-  return { income, suggestions: await getIncomeSuggestions(), today: todayISO() };
+  return { income, suggestions, today: todayISO() };
 }
 
 /** Para onde voltar depois de editar na página inteira. */

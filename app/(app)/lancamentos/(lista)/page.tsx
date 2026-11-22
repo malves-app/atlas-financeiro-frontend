@@ -1,8 +1,13 @@
 import Link from "next/link";
+import Form from "next/form";
 import { getMonth, listCategories, listPaymentMethods, type Entry } from "@/lib/data";
 import { formatDay, formatShortDate, monthPhrase } from "@/lib/format";
 import { readParams, type SearchParams } from "@/lib/page";
-import { BackToCurrentMonth, EmptyState, Money, MonthSwitcher, Panel, PaymentTag } from "@/components/ui";
+import { EmptyState, Money, Panel, PaymentTag } from "@/components/ui";
+import { LancamentosHeader } from "@/components/PageHeaders";
+import { OptimisticLink, ParamShow, PendingSwap } from "@/components/NavState";
+import { LancamentosListSkeleton } from "@/components/PageSkeletons";
+import { SubmitButton } from "@/components/SubmitButton";
 import { fillCategoriesFromHistory } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
@@ -27,8 +32,7 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
   const q = (get("q") ?? "").trim();
   const cat = get("cat");
   const pm = get("pm");
-  const [methods, categories] = await Promise.all([listPaymentMethods(), listCategories()]);
-  const summary = await getMonth(month);
+  const [methods, categories, summary] = await Promise.all([listPaymentMethods(), listCategories(), getMonth(month)]);
   const catById = new Map(categories.map((c) => [c.id, c]));
   const methodById = new Map(methods.map((m) => [m.id, m]));
 
@@ -56,83 +60,89 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
   const selectedCat = cat ? (cat === "sem" ? { name: "Sem categoria", emoji: "·" } : catById.get(Number(cat))) : null;
   const uncategorized = summary.entries.filter((e) => e.categoryId == null).length;
 
+  // As duas abas já vêm prontas: trocar de aba é instantâneo (o endereço acompanha depois).
+  // Mudar mês, filtro ou busca mostra o skeleton da lista no toque, até a página responder.
   return (
     <div>
-      <header className="flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),10px)] lg:px-0 lg:pt-2">
-        <h1 className="display text-[22px] font-bold tracking-tight lg:text-[28px]">Lançamentos</h1>
-        <MonthSwitcher month={month} basePath="/lancamentos" params={{ tab: tab === "entradas" ? "entradas" : undefined }} />
-      </header>
-      <BackToCurrentMonth month={month} basePath="/lancamentos" params={{ tab: tab === "entradas" ? "entradas" : undefined }} />
+      <LancamentosHeader month={month} tab={tab} />
 
       <div className="mx-4 mt-2 grid grid-cols-2 gap-1 rounded-full bg-surface p-1 lg:mx-0 lg:max-w-sm">
-        <Link
+        <OptimisticLink
           href={params({ tab: undefined, f: undefined, cat: undefined })}
-          aria-current={tab === "gastos" ? "page" : undefined}
-          className={`rounded-full py-2 text-center text-[15px] font-semibold ${tab === "gastos" ? "bg-ink text-white" : "text-ink-2"}`}
+          active={tab === "gastos"}
+          match={["tab"]}
+          current
+          scroll={false}
+          className="rounded-full py-2 text-center text-[15px] font-semibold text-ink-2 transition-colors data-active:bg-ink data-active:text-white"
         >
           Gastos
-        </Link>
-        <Link
+        </OptimisticLink>
+        <OptimisticLink
           href={params({ tab: "entradas", f: undefined, cat: undefined, q: undefined })}
-          aria-current={tab === "entradas" ? "page" : undefined}
-          className={`rounded-full py-2 text-center text-[15px] font-semibold ${tab === "entradas" ? "bg-brand text-white" : "text-ink-2"}`}
+          active={tab === "entradas"}
+          match={["tab"]}
+          current
+          scroll={false}
+          className="rounded-full py-2 text-center text-[15px] font-semibold text-ink-2 transition-colors data-active:bg-brand data-active:text-white"
         >
           Entradas
-        </Link>
+        </OptimisticLink>
       </div>
 
-      {tab === "gastos" ? (
-        <>
-          <form action="/lancamentos" className="mx-4 mt-3 lg:mx-0">
-            <input type="hidden" name="m" value={month} />
-            {f && <input type="hidden" name="f" value={f} />}
-            {cat && <input type="hidden" name="cat" value={cat} />}
-            {pm && <input type="hidden" name="pm" value={pm} />}
-            <input
-              type="search"
-              name="q"
-              defaultValue={q}
-              placeholder="Buscar por nome"
-              aria-label="Buscar lançamentos por nome"
-              className="w-full rounded-2xl border border-line bg-surface px-4 py-2.5 outline-none focus:border-brand"
-            />
-          </form>
+      <ParamShow name="tab" value="gastos" current={tab} fallback="gastos">
+        <Form action="/lancamentos" className="mx-4 mt-3 lg:mx-0">
+          <input type="hidden" name="m" value={month} />
+          {f && <input type="hidden" name="f" value={f} />}
+          {cat && <input type="hidden" name="cat" value={cat} />}
+          {pm && <input type="hidden" name="pm" value={pm} />}
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar por nome"
+            aria-label="Buscar lançamentos por nome"
+            className="w-full rounded-2xl border border-line bg-surface px-4 py-2.5 outline-none focus:border-brand"
+          />
+        </Form>
 
-          <div className="mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] pointer-fine:flex-wrap lg:flex-wrap lg:px-0">
-            {FILTERS.map((fl) => (
-              <Link
-                key={fl.id}
-                href={params({ f: fl.id || undefined, cat: undefined, pm: undefined })}
-                replace
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-[14px] font-medium ${
-                  f === fl.id && !cat && !pm ? "bg-ink text-white" : "border border-line bg-surface text-ink-2"
-                }`}
-              >
-                {fl.label}
-                {fl.id === "sem-categoria" && uncategorized > 0 && <span className="ml-1 num">({uncategorized})</span>}
-              </Link>
-            ))}
-            {methods.map((m) => (
-              <Link
-                key={m.id}
-                href={params({ f: "todos", cat: undefined, pm: String(m.id) })}
-                replace
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[14px] font-medium ${
-                  pm === String(m.id) ? "bg-ink text-white" : "border border-line bg-surface text-ink-2"
-                }`}
-              >
-                <span className="size-2 rounded-full" style={{ background: m.color }} aria-hidden />
-                {m.name}
-              </Link>
-            ))}
-          </div>
+        <div className="mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] pointer-fine:flex-wrap lg:flex-wrap lg:px-0">
+          {FILTERS.map((fl) => (
+            <OptimisticLink
+              key={fl.id}
+              href={params({ f: fl.id || undefined, cat: undefined, pm: undefined })}
+              active={f === fl.id && !cat && !pm}
+              match={["f", "pm", "cat"]}
+              replace
+              scroll={false}
+              className="shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-[14px] font-medium text-ink-2 data-active:border-transparent data-active:bg-ink data-active:text-white"
+            >
+              {fl.label}
+              {fl.id === "sem-categoria" && uncategorized > 0 && <span className="ml-1 num">({uncategorized})</span>}
+            </OptimisticLink>
+          ))}
+          {methods.map((m) => (
+            <OptimisticLink
+              key={m.id}
+              href={params({ f: "todos", cat: undefined, pm: String(m.id) })}
+              active={pm === String(m.id)}
+              match={["f", "pm", "cat"]}
+              replace
+              scroll={false}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1.5 text-[14px] font-medium text-ink-2 data-active:border-transparent data-active:bg-ink data-active:text-white"
+            >
+              <span className="size-2 rounded-full" style={{ background: m.color }} aria-hidden />
+              {m.name}
+            </OptimisticLink>
+          ))}
+        </div>
 
+        <PendingSwap keys={["m", "f", "pm", "cat", "q"]} fallback={<LancamentosListSkeleton tab="gastos" />}>
           {selectedCat && (
             <div className="mx-4 mt-3 flex items-center justify-between rounded-2xl lg:mx-0 bg-surface px-4 py-2.5 text-[15px]">
               <span>
                 <span aria-hidden>{selectedCat.emoji}</span> {selectedCat.name}
               </span>
-              <Link href={params({ cat: undefined })} className="text-[14px] font-medium text-brand">
+              <Link href={params({ cat: undefined })} scroll={false} className="text-[14px] font-medium text-brand">
                 Limpar filtro
               </Link>
             </div>
@@ -144,9 +154,9 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
               <p className="text-[14px] text-ink">
                 Dá para preencher usando o histórico: se “Uber” já foi categorizado antes, os novos “Uber” recebem a mesma categoria.
               </p>
-              <button type="submit" className="mt-2 rounded-full bg-brand px-4 py-2 text-[14px] font-semibold text-white">
+              <SubmitButton tone="brand" pendingLabel="Preenchendo…" className="mt-2 rounded-full bg-brand px-4 py-2 text-[14px] font-semibold text-white disabled:opacity-80">
                 Preencher pelo histórico
-              </button>
+              </SubmitButton>
             </form>
           )}
 
@@ -205,9 +215,11 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
               ))}
             </div>
           )}
-        </>
-      ) : (
-        <>
+        </PendingSwap>
+      </ParamShow>
+
+      <ParamShow name="tab" value="entradas" current={tab} fallback="gastos">
+        <PendingSwap keys={["m"]} fallback={<LancamentosListSkeleton tab="entradas" />}>
           <p className="mx-5 mt-4 mb-2 flex justify-between text-[14px] text-ink-2 lg:mx-1">
             <span>
               {summary.incomes.length} {summary.incomes.length === 1 ? "entrada" : "entradas"}
@@ -235,16 +247,16 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
               </ul>
             )}
           </Panel>
-          <div className="mx-4 mt-3 lg:mx-0">
-            <Link
-              href={`/novo?tipo=entrada&m=${month}`}
-              className="block rounded-full border border-line bg-surface py-3 text-center text-[15px] font-semibold text-brand"
-            >
-              Registrar entrada
-            </Link>
-          </div>
-        </>
-      )}
+        </PendingSwap>
+        <div className="mx-4 mt-3 lg:mx-0">
+          <Link
+            href={`/novo?tipo=entrada&m=${month}`}
+            className="block rounded-full border border-line bg-surface py-3 text-center text-[15px] font-semibold text-brand"
+          >
+            Registrar entrada
+          </Link>
+        </div>
+      </ParamShow>
     </div>
   );
 }

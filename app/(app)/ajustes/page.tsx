@@ -2,12 +2,14 @@ import { getUserEmail, listCategories, listPaymentMethods } from "@/lib/data";
 import { logout } from "@/app/actions";
 import { Panel, SectionTitle } from "@/components/ui";
 import { CategoryRow, ImportForm, PaymentMethodRow } from "@/components/SettingsForms";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function Ajustes() {
-  const methods = await listPaymentMethods();
-  const [categories, email] = await Promise.all([listCategories(), getUserEmail()]);
+  // As formas de pagamento vêm antes das categorias (conta nova: cria as padrão primeiro)
+  const methodsP = listPaymentMethods();
+  const [methods, categories, email] = await Promise.all([methodsP, methodsP.then(() => listCategories()), getUserEmail()]);
   const usedColors = methods.map((m) => m.color);
   return (
     <>
@@ -67,9 +69,9 @@ export default async function Ajustes() {
 
           <form action={logout} className="mx-4 lg:mx-0">
             {email && <p className="mb-2 text-center text-[13px] text-ink-3">Conectado como {email}</p>}
-            <button type="submit" className="w-full rounded-full border border-line bg-surface py-3 text-[15px] font-semibold text-ink-2">
+            <SubmitButton tone="light" pendingLabel="Saindo…" className="w-full rounded-full border border-line bg-surface py-3 text-[15px] font-semibold text-ink-2">
               Sair
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { monthLabel, shiftMonth } from "@/lib/format";
+import { startNavigation } from "./NavState";
 
 type Range = { from: string; to: string };
 
@@ -36,7 +37,10 @@ export function PeriodFilter({
   const def: Range = { from: `${nowYear}-01`, to: now };
   const go = (next: Range) => {
     setRange(next);
-    startTransition(() => router.push(periodHref(next, def), { scroll: false }));
+    const href = periodHref(next, def);
+    // o conteúdo abaixo vira skeleton no toque (components/NavState.tsx)
+    startNavigation(href);
+    startTransition(() => router.push(href, { scroll: false }));
   };
 
   // Meses disponíveis, do mais recente ao mais antigo, agrupados por ano
@@ -82,7 +86,7 @@ export function PeriodFilter({
   );
 
   return (
-    <section aria-label="Período" className={`mx-3 mb-3 lg:mx-0 ${pending ? "opacity-70" : ""}`} aria-busy={pending || undefined}>
+    <section aria-label="Período" className="mx-3 mb-3 lg:mx-0" aria-busy={pending || undefined}>
       <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-2xl bg-surface ring-1 ring-line lg:max-w-md">
         {field("De", range.from, (m) => go({ from: m, to: m > range.to ? m : range.to }))}
         {field("Até", range.to, (m) => go({ from: m < range.from ? m : range.from, to: m }))}

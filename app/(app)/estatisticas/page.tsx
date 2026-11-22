@@ -5,6 +5,8 @@ import type { SearchParams } from "@/lib/page";
 import { EmptyState, EntryIcon, Money, Panel, SectionTitle, StackedBar } from "@/components/ui";
 import { ColumnChart } from "@/components/ColumnChart";
 import { PeriodFilter } from "@/components/PeriodFilter";
+import { PendingSwap } from "@/components/NavState";
+import { EstatisticasBodySkeleton } from "@/components/PageSkeletons";
 
 export const dynamic = "force-dynamic";
 
@@ -70,237 +72,240 @@ export default async function Estatisticas({ searchParams }: { searchParams: Sea
       {/* Período: de um mês a outro (padrão: o ano atual) */}
       <PeriodFilter key={`${period.from}:${period.to}`} from={period.from} to={period.to} firstMonth={lookups.firstMonth} now={now} />
 
-      {empty ? (
-        <Panel>
-          <EmptyState>Nenhum lançamento {emptyText}.</EmptyState>
-        </Panel>
-      ) : (
-        <div className="flex flex-col gap-3 lg:gap-4">
-          {/* Resumo do período */}
-          <section aria-labelledby="saldo-ano" className="mx-3 overflow-hidden rounded-[24px] bg-ink p-5 text-white lg:mx-0 lg:p-7">
-            <h2 id="saldo-ano" className="text-[15px] text-white/70">
-              Saldo {periodName}
-            </h2>
-            <p
-              className={`display mt-1 text-[clamp(40px,12vw,60px)] leading-[0.95] font-[750] tracking-[-0.02em] ${totals.saldo < 0 ? "text-[#ff9aa5]" : "text-white"}`}
-              style={{ fontStretch: "82%" }}
-            >
-              <Money cents={totals.saldo} />
-            </p>
-            <p className="mt-2 text-[14px] text-white/70">
-              {rangeText}
-              {hasPartial && `, com ${lower(now)} ainda em andamento`}
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-2.5">
-              <div className="rounded-2xl bg-white/[0.08] p-3.5">
-                <div className="text-[13px] text-white/70">Entrou</div>
-                <Money cents={totals.entradas} className="mt-0.5 block text-[18px] font-semibold text-[#7fd8c8]" />
-              </div>
-              <div className="rounded-2xl bg-white/[0.08] p-3.5">
-                <div className="text-[13px] text-white/70">Gastou</div>
-                <Money cents={totals.gastos} className="mt-0.5 block text-[18px] font-semibold" />
-              </div>
-            </div>
-            {totals.savingsRate != null && (
-              <p className={`mt-4 text-[14px] ${totals.savingsRate < 0 ? "font-medium text-[#ff9aa5]" : "text-white/80"}`}>
-                {totals.savingsRate >= 0
-                  ? `Você guardou ${formatPercent(totals.savingsRate)} do que entrou.`
-                  : `Os gastos passaram o que entrou em ${formatBRL(-totals.saldo)}.`}
-              </p>
-            )}
-          </section>
-
-          {/* Números do período */}
-          <Panel className="grid grid-cols-2 sm:grid-cols-4">
-            <Kpi label="Gasto médio por mês" value={<Money cents={spend.mean} />} note={`Mediana ${formatBRL(spend.median)}`} />
-            <Kpi
-              label="Mês mais caro"
-              value={spend.max ? monthLabel(spend.max.month, false) : "—"}
-              note={spend.max ? formatBRL(spend.max.value) : undefined}
-            />
-            <Kpi label="Dia a dia, por dia" value={<Money cents={stats.dailyAvg} />} note={`Em ${stats.dayToDayDays} dias`} />
-            <Kpi
-              label="Meses no vermelho"
-              value={`${stats.negativeMonths.length} de ${monthly.filter((r) => !r.partial).length || months.length}`}
-              note={stats.negativeMonths.length ? stats.negativeMonths.map(monthShort).join(", ") : "Nenhum"}
-              alert={stats.negativeMonths.length > 0}
-            />
-          </Panel>
-
-          {/* Entradas e gastos */}
-          <Panel className="px-4 pt-4 pb-4">
-            <h2 className="mb-3 text-[15px] font-semibold">Entradas e gastos por mês</h2>
-            <ColumnChart
-              label="Entradas e gastos por mês"
-              labels={labels}
-              titles={titles}
-              partial={partial}
-              series={[
-                { key: "entradas", label: "Entradas", color: INCOME, values: monthly.map((r) => r.entradas) },
-                { key: "gastos", label: "Gastos", color: SPEND, values: monthly.map((r) => r.gastos) },
-              ]}
-            />
-            {hasPartial && <p className="mt-3 text-[12px] text-ink-3">A coluna mais clara é {lower(now)}, que ainda está em andamento.</p>}
-          </Panel>
-
-          {/* Saldo mês a mês */}
-          <Panel className="px-4 pt-4 pb-4">
-            <h2 className="text-[15px] font-semibold">Saldo de cada mês</h2>
-            <p className="mb-3 text-[13px] text-ink-3">Acima da linha sobrou dinheiro; abaixo, faltou.</p>
-            <ColumnChart
-              label="Saldo de cada mês"
-              labels={labels}
-              titles={titles}
-              partial={partial}
-              height={180}
-              series={[{ key: "saldo", label: "Saldo", color: INCOME, negColor: NEGATIVE, values: monthly.map((r) => r.saldo) }]}
-              extra={[{ label: "acumulado", values: stats.cumulative }]}
-            />
-          </Panel>
-
-          {/* Composição mês a mês */}
-          <Composition stats={stats} labels={labels} titles={titles} partial={partial} />
-
-          {/* Categorias */}
-          <Categories stats={stats} lookups={lookups} />
-
-          {/* Formas de pagamento */}
-          <Payments stats={stats} lookups={lookups} />
-
-          {/* Onde mais gasta */}
-          {stats.topNames.length > 0 && (
-            <Panel className="pb-2">
-              <SectionTitle>Onde você mais gasta</SectionTitle>
-              <p className="-mt-1 px-4 pb-2 text-[13px] text-ink-3">Gastos do dia a dia agrupados pela descrição.</p>
-              <ol>
-                {stats.topNames.map((t, i) => (
-                  <li key={t.name} className="flex items-center gap-3 px-4 py-2.5">
-                    <span className="num grid size-8 shrink-0 place-items-center rounded-full bg-paper text-[13px] font-semibold text-ink-2">{i + 1}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-medium">{t.name}</span>
-                      <span className="block text-[13px] text-ink-3">
-                        {t.count} {t.count === 1 ? "vez" : "vezes"}, média de {formatBRL(t.avg)}
-                      </span>
-                    </span>
-                    <Money cents={t.total} className="text-[15px] font-semibold" />
-                  </li>
-                ))}
-              </ol>
-            </Panel>
-          )}
-
-          {/* Maiores gastos */}
-          {stats.biggest.length > 0 && (
-            <Panel className="pb-2">
-              <SectionTitle>Maiores gastos do dia a dia</SectionTitle>
-              <ul>
-                {stats.biggest.map((e) => {
-                  const cat = e.categoryId != null ? lookups.categories.get(e.categoryId) : undefined;
-                  return (
-                    <li key={e.id}>
-                      <Link href={`/lancamentos/${e.id}?back=${back}`} className="flex items-center gap-3 px-4 py-2 hover:bg-paper/60">
-                        <EntryIcon emoji={cat?.emoji} name={e.name} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px] font-medium">{e.name}</span>
-                          <span className="block truncate text-[13px] text-ink-3">
-                            {e.date ? formatShortDate(e.date) : monthLabel(e.month)}
-                            {cat ? `, ${cat.name}` : ""}
-                          </span>
-                        </span>
-                        <Money cents={e.amountCents} className="text-[15px] font-semibold" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Panel>
-          )}
-
-          {/* Dia da semana */}
-          <Weekdays stats={stats} />
-
-          {/* De onde vem o dinheiro */}
-          {stats.incomeSources.length > 0 && (
-            <Panel className="pb-3">
-              <SectionTitle>De onde veio o dinheiro</SectionTitle>
-              <ul>
-                {stats.incomeSources.map((s) => {
-                  const share = totals.entradas > 0 ? s.total / totals.entradas : 0;
-                  return (
-                    <li key={s.name} className="px-4 py-2">
-                      <span className="flex items-baseline justify-between gap-3">
-                        <span className="truncate text-[15px] font-medium">{s.name}</span>
-                        <Money cents={s.total} className="text-[15px] font-semibold" />
-                      </span>
-                      <span className="mt-1.5 flex items-center gap-2.5">
-                        <span className="h-2 flex-1 rounded-full bg-paper">
-                          <span className="block h-full rounded-full" style={{ width: `${Math.max(share * 100, 2)}%`, background: INCOME }} />
-                        </span>
-                        <span className="num w-10 text-right text-[12px] text-ink-3">{formatPercent(share)}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Panel>
-          )}
-
-          {/* Tabela */}
+      {/* Outro período: o skeleton aparece no toque, até as contas do período chegarem */}
+      <PendingSwap keys={["de", "ate"]} fallback={<EstatisticasBodySkeleton />}>
+        {empty ? (
           <Panel>
-            <SectionTitle>Tabela mês a mês</SectionTitle>
-            <div className="overflow-x-auto px-2 pb-3">
-              <table className="w-full min-w-[460px] text-[14px]">
-                <thead>
-                  <tr className="text-left text-[12px] text-ink-3">
-                    <th className="px-2 py-2 font-medium">Mês</th>
-                    <th className="px-2 py-2 text-right font-medium">Entrou</th>
-                    <th className="px-2 py-2 text-right font-medium">Gastou</th>
-                    <th className="px-2 py-2 text-right font-medium">Saldo</th>
-                    <th className="px-2 py-2 text-right font-medium">Acumulado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthly.map((r, i) => (
-                    <tr key={r.month} className="border-t border-line">
-                      <td className="px-2 py-2">
-                        {monthLabel(r.month, multiYear)}
-                        {r.partial && <span className="text-ink-3"> (parcial)</span>}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <Money cents={r.entradas} />
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <Money cents={r.gastos} />
-                      </td>
-                      <td className={`px-2 py-2 text-right font-medium ${r.saldo < 0 ? "text-danger" : ""}`}>
-                        <Money cents={r.saldo} />
-                      </td>
-                      <td className={`px-2 py-2 text-right ${stats.cumulative[i] < 0 ? "text-danger" : "text-ink-2"}`}>
-                        <Money cents={stats.cumulative[i]} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-line font-semibold">
-                    <td className="px-2 py-2">Total</td>
-                    <td className="px-2 py-2 text-right">
-                      <Money cents={totals.entradas} />
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <Money cents={totals.gastos} />
-                    </td>
-                    <td className={`px-2 py-2 text-right ${totals.saldo < 0 ? "text-danger" : ""}`}>
-                      <Money cents={totals.saldo} />
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+            <EmptyState>Nenhum lançamento {emptyText}.</EmptyState>
           </Panel>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-col gap-3 lg:gap-4">
+            {/* Resumo do período */}
+            <section aria-labelledby="saldo-ano" className="mx-3 overflow-hidden rounded-[24px] bg-ink p-5 text-white lg:mx-0 lg:p-7">
+              <h2 id="saldo-ano" className="text-[15px] text-white/70">
+                Saldo {periodName}
+              </h2>
+              <p
+                className={`display mt-1 text-[clamp(40px,12vw,60px)] leading-[0.95] font-[750] tracking-[-0.02em] ${totals.saldo < 0 ? "text-[#ff9aa5]" : "text-white"}`}
+                style={{ fontStretch: "82%" }}
+              >
+                <Money cents={totals.saldo} />
+              </p>
+              <p className="mt-2 text-[14px] text-white/70">
+                {rangeText}
+                {hasPartial && `, com ${lower(now)} ainda em andamento`}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                <div className="rounded-2xl bg-white/[0.08] p-3.5">
+                  <div className="text-[13px] text-white/70">Entrou</div>
+                  <Money cents={totals.entradas} className="mt-0.5 block text-[18px] font-semibold text-[#7fd8c8]" />
+                </div>
+                <div className="rounded-2xl bg-white/[0.08] p-3.5">
+                  <div className="text-[13px] text-white/70">Gastou</div>
+                  <Money cents={totals.gastos} className="mt-0.5 block text-[18px] font-semibold" />
+                </div>
+              </div>
+              {totals.savingsRate != null && (
+                <p className={`mt-4 text-[14px] ${totals.savingsRate < 0 ? "font-medium text-[#ff9aa5]" : "text-white/80"}`}>
+                  {totals.savingsRate >= 0
+                    ? `Você guardou ${formatPercent(totals.savingsRate)} do que entrou.`
+                    : `Os gastos passaram o que entrou em ${formatBRL(-totals.saldo)}.`}
+                </p>
+              )}
+            </section>
+
+            {/* Números do período */}
+            <Panel className="grid grid-cols-2 sm:grid-cols-4">
+              <Kpi label="Gasto médio por mês" value={<Money cents={spend.mean} />} note={`Mediana ${formatBRL(spend.median)}`} />
+              <Kpi
+                label="Mês mais caro"
+                value={spend.max ? monthLabel(spend.max.month, false) : "—"}
+                note={spend.max ? formatBRL(spend.max.value) : undefined}
+              />
+              <Kpi label="Dia a dia, por dia" value={<Money cents={stats.dailyAvg} />} note={`Em ${stats.dayToDayDays} dias`} />
+              <Kpi
+                label="Meses no vermelho"
+                value={`${stats.negativeMonths.length} de ${monthly.filter((r) => !r.partial).length || months.length}`}
+                note={stats.negativeMonths.length ? stats.negativeMonths.map(monthShort).join(", ") : "Nenhum"}
+                alert={stats.negativeMonths.length > 0}
+              />
+            </Panel>
+
+            {/* Entradas e gastos */}
+            <Panel className="px-4 pt-4 pb-4">
+              <h2 className="mb-3 text-[15px] font-semibold">Entradas e gastos por mês</h2>
+              <ColumnChart
+                label="Entradas e gastos por mês"
+                labels={labels}
+                titles={titles}
+                partial={partial}
+                series={[
+                  { key: "entradas", label: "Entradas", color: INCOME, values: monthly.map((r) => r.entradas) },
+                  { key: "gastos", label: "Gastos", color: SPEND, values: monthly.map((r) => r.gastos) },
+                ]}
+              />
+              {hasPartial && <p className="mt-3 text-[12px] text-ink-3">A coluna mais clara é {lower(now)}, que ainda está em andamento.</p>}
+            </Panel>
+
+            {/* Saldo mês a mês */}
+            <Panel className="px-4 pt-4 pb-4">
+              <h2 className="text-[15px] font-semibold">Saldo de cada mês</h2>
+              <p className="mb-3 text-[13px] text-ink-3">Acima da linha sobrou dinheiro; abaixo, faltou.</p>
+              <ColumnChart
+                label="Saldo de cada mês"
+                labels={labels}
+                titles={titles}
+                partial={partial}
+                height={180}
+                series={[{ key: "saldo", label: "Saldo", color: INCOME, negColor: NEGATIVE, values: monthly.map((r) => r.saldo) }]}
+                extra={[{ label: "acumulado", values: stats.cumulative }]}
+              />
+            </Panel>
+
+            {/* Composição mês a mês */}
+            <Composition stats={stats} labels={labels} titles={titles} partial={partial} />
+
+            {/* Categorias */}
+            <Categories stats={stats} lookups={lookups} />
+
+            {/* Formas de pagamento */}
+            <Payments stats={stats} lookups={lookups} />
+
+            {/* Onde mais gasta */}
+            {stats.topNames.length > 0 && (
+              <Panel className="pb-2">
+                <SectionTitle>Onde você mais gasta</SectionTitle>
+                <p className="-mt-1 px-4 pb-2 text-[13px] text-ink-3">Gastos do dia a dia agrupados pela descrição.</p>
+                <ol>
+                  {stats.topNames.map((t, i) => (
+                    <li key={t.name} className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="num grid size-8 shrink-0 place-items-center rounded-full bg-paper text-[13px] font-semibold text-ink-2">{i + 1}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-medium">{t.name}</span>
+                        <span className="block text-[13px] text-ink-3">
+                          {t.count} {t.count === 1 ? "vez" : "vezes"}, média de {formatBRL(t.avg)}
+                        </span>
+                      </span>
+                      <Money cents={t.total} className="text-[15px] font-semibold" />
+                    </li>
+                  ))}
+                </ol>
+              </Panel>
+            )}
+
+            {/* Maiores gastos */}
+            {stats.biggest.length > 0 && (
+              <Panel className="pb-2">
+                <SectionTitle>Maiores gastos do dia a dia</SectionTitle>
+                <ul>
+                  {stats.biggest.map((e) => {
+                    const cat = e.categoryId != null ? lookups.categories.get(e.categoryId) : undefined;
+                    return (
+                      <li key={e.id}>
+                        <Link href={`/lancamentos/${e.id}?back=${back}`} className="flex items-center gap-3 px-4 py-2 hover:bg-paper/60">
+                          <EntryIcon emoji={cat?.emoji} name={e.name} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[15px] font-medium">{e.name}</span>
+                            <span className="block truncate text-[13px] text-ink-3">
+                              {e.date ? formatShortDate(e.date) : monthLabel(e.month)}
+                              {cat ? `, ${cat.name}` : ""}
+                            </span>
+                          </span>
+                          <Money cents={e.amountCents} className="text-[15px] font-semibold" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Panel>
+            )}
+
+            {/* Dia da semana */}
+            <Weekdays stats={stats} />
+
+            {/* De onde vem o dinheiro */}
+            {stats.incomeSources.length > 0 && (
+              <Panel className="pb-3">
+                <SectionTitle>De onde veio o dinheiro</SectionTitle>
+                <ul>
+                  {stats.incomeSources.map((s) => {
+                    const share = totals.entradas > 0 ? s.total / totals.entradas : 0;
+                    return (
+                      <li key={s.name} className="px-4 py-2">
+                        <span className="flex items-baseline justify-between gap-3">
+                          <span className="truncate text-[15px] font-medium">{s.name}</span>
+                          <Money cents={s.total} className="text-[15px] font-semibold" />
+                        </span>
+                        <span className="mt-1.5 flex items-center gap-2.5">
+                          <span className="h-2 flex-1 rounded-full bg-paper">
+                            <span className="block h-full rounded-full" style={{ width: `${Math.max(share * 100, 2)}%`, background: INCOME }} />
+                          </span>
+                          <span className="num w-10 text-right text-[12px] text-ink-3">{formatPercent(share)}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Panel>
+            )}
+
+            {/* Tabela */}
+            <Panel>
+              <SectionTitle>Tabela mês a mês</SectionTitle>
+              <div className="overflow-x-auto px-2 pb-3">
+                <table className="w-full min-w-[460px] text-[14px]">
+                  <thead>
+                    <tr className="text-left text-[12px] text-ink-3">
+                      <th className="px-2 py-2 font-medium">Mês</th>
+                      <th className="px-2 py-2 text-right font-medium">Entrou</th>
+                      <th className="px-2 py-2 text-right font-medium">Gastou</th>
+                      <th className="px-2 py-2 text-right font-medium">Saldo</th>
+                      <th className="px-2 py-2 text-right font-medium">Acumulado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthly.map((r, i) => (
+                      <tr key={r.month} className="border-t border-line">
+                        <td className="px-2 py-2">
+                          {monthLabel(r.month, multiYear)}
+                          {r.partial && <span className="text-ink-3"> (parcial)</span>}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <Money cents={r.entradas} />
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <Money cents={r.gastos} />
+                        </td>
+                        <td className={`px-2 py-2 text-right font-medium ${r.saldo < 0 ? "text-danger" : ""}`}>
+                          <Money cents={r.saldo} />
+                        </td>
+                        <td className={`px-2 py-2 text-right ${stats.cumulative[i] < 0 ? "text-danger" : "text-ink-2"}`}>
+                          <Money cents={stats.cumulative[i]} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-line font-semibold">
+                      <td className="px-2 py-2">Total</td>
+                      <td className="px-2 py-2 text-right">
+                        <Money cents={totals.entradas} />
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <Money cents={totals.gastos} />
+                      </td>
+                      <td className={`px-2 py-2 text-right ${totals.saldo < 0 ? "text-danger" : ""}`}>
+                        <Money cents={totals.saldo} />
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Panel>
+          </div>
+        )}
+      </PendingSwap>
     </>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
+import { LogoLoader } from "./LogoLoader";
 
 /** Exclusão em dois toques, sem janela de confirmação do navegador. */
 export function DeleteButton({
@@ -33,9 +35,7 @@ export function DeleteButton({
       ))}
       {armed ? (
         <div className="flex gap-2">
-          <button type="submit" disabled={pending} className="flex-1 rounded-full bg-danger py-3 text-[15px] font-semibold text-white disabled:opacity-60">
-            {pending ? "Excluindo…" : confirmLabel}
-          </button>
+          <ConfirmButton pending={pending}>{confirmLabel}</ConfirmButton>
           <button
             type="button"
             onClick={() => setArmed(false)}
@@ -54,5 +54,22 @@ export function DeleteButton({
         </button>
       )}
     </form>
+  );
+}
+
+/** Confirmar exclusão: o loader aparece tanto na janela (transição) quanto na página (envio do formulário). */
+function ConfirmButton({ pending, children }: { pending: boolean; children: React.ReactNode }) {
+  const status = useFormStatus();
+  const busy = pending || status.pending;
+  return (
+    <button
+      type="submit"
+      disabled={busy}
+      aria-busy={busy || undefined}
+      className="flex flex-1 items-center justify-center gap-2 rounded-full bg-danger py-3 text-[15px] font-semibold text-white disabled:opacity-90"
+    >
+      {busy && <LogoLoader tone="brand" className="size-[18px]" />}
+      {busy ? "Excluindo…" : children}
+    </button>
   );
 }

@@ -119,6 +119,12 @@ os que a própria planilha mostra.
 
 - `app/`: telas (painel, novo, lançamentos, fixos, estatísticas, ajustes, login) e `actions.ts` (salvar, excluir, importar, entrar)
 - `proxy.ts`: renova a sessão do Supabase e manda para o login quem não entrou
+- `components/NavState.tsx`, `components/RouteTransition.tsx`, `components/PageSkeletons.tsx`: carregamento na hora do
+  toque. Ao clicar num link, a tela já mostra o skeleton do destino (ou abre a janela com o formulário em skeleton) e
+  marca a aba, o filtro, o mês e o item do menu escolhidos; cada rota também tem um `loading.tsx` com o mesmo skeleton.
+  As listas (`/`, `/lancamentos`, `/fixos`) ficam em grupos de rota (`(painel)`, `(lista)`) para o skeleton de uma
+  lista não aparecer ao abrir uma tela de dentro dela (ex.: `/fixos/novo`)
+- `components/LogoLoader.tsx`: o globo da abertura animado, usado nos botões enquanto salvam
 - `lib/supabase/`: clientes do Supabase para o servidor
 - `lib/data.ts`: consultas e regras (totais do mês, fixos recorrentes, parcelas)
 - `lib/stats.ts`: estatísticas do ano ou dos últimos 12 meses (médias, tendência, rankings)

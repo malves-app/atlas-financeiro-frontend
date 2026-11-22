@@ -4,9 +4,10 @@ import type { QuickAddData } from "@/components/QuickAdd";
 
 /** Tudo o que o lançamento rápido precisa (para a janela e para a página /novo). */
 export async function loadQuickAddData(): Promise<QuickAddData> {
-  const methods = await listPaymentMethods();
-  const [categories, suggestions, incomeSuggestions] = await Promise.all([
-    listCategoriesByUse(),
+  const methodsP = listPaymentMethods();
+  const [methods, categories, suggestions, incomeSuggestions] = await Promise.all([
+    methodsP,
+    methodsP.then(() => listCategoriesByUse()),
     getSuggestions(),
     getIncomeSuggestions(),
   ]);
