@@ -29,12 +29,15 @@ import { PainelBodySkeleton } from "@/components/PageSkeletons";
 import { PayNowButton } from "@/components/PayButton";
 import { CategoryBars } from "@/components/CategoryBars";
 import { ShareReport, type ReportData } from "@/components/ShareReport";
+import { BalanceCard } from "@/components/BalanceCard";
+import { balanceView } from "@/lib/balance";
 
 export const dynamic = "force-dynamic";
 
 // Tons de uma cor só para as partes de um todo (fixos do mês, do cartão, dia a dia)
 const COMPOSITION = ["#172033", "#5b6b8c", "#a9b4c8"];
 const PENDING_VISIBLE = 5;
+const SHARE_EMOJI = { in: "⬇️", conta: "⬆️", cartao: "💳", pagar: "🧾" };
 
 export default async function Painel({
   searchParams,
@@ -57,78 +60,16 @@ export default async function Painel({
   const today = todayISO();
   const isCurrent = month === currentMonth();
 
-  // O cartão do saldo se lê como um extrato. Três situações:
-  // - "fechado": nada mais por sair (mês que passou, ou tudo pago e cobrado): um saldo só;
-  // - "andamento": mês atual com contas ou cobranças por vir: saldo de hoje e saldo no fim do mês;
-  // - "futuro": mês que ainda não começou: saldo previsto.
-  const mode: "fechado" | "andamento" | "futuro" =
-    totals.aSair <= 0 ? "fechado" : month > currentMonth() ? "futuro" : "andamento";
-  const saldoHoje = totals.entradas - totals.saiu;
-  const heroLabel =
-    mode === "andamento"
-      ? "Saldo hoje"
-      : mode === "futuro"
-        ? `Saldo previsto de ${monthName}`
-        : `Saldo de ${monthName}`;
-  const heroCents = mode === "andamento" ? saldoHoje : totals.saldo;
+  // Cartão do saldo: saldo do mês inteiro em destaque, barras Entrou × Gastos e o extrato (lib/balance.ts)
+  const view = balanceView({
+    month,
+    today,
+    totals,
+    upcoming: summary.upcoming,
+    byPayment: summary.byPayment,
+    methods,
+  });
 
-  // Barra: o todo é o que entrou; cheio = já saiu; listrado = ainda vai sair
-  const ratioOf = (cents: number) =>
-    totals.entradas > 0 ? cents / totals.entradas : cents > 0 ? Infinity : 0;
-  const pctOf = (cents: number) => {
-    const r = ratioOf(cents);
-    return Number.isFinite(r) ? Math.round(r * 100) : 100;
-  };
-  const clamp = (n: number) => Math.min(Math.max(n, 0), 100);
-  const spentCents = mode === "fechado" ? totals.gastos : totals.saiu;
-  const spentPct = pctOf(spentCents);
-  const plannedPct = pctOf(totals.gastos);
-  const solidBar = clamp(spentPct);
-  const stripedBar = mode === "fechado" ? 0 : clamp(plannedPct) - solidBar;
-  // Sem entrada nenhuma, qualquer gasto já passa do que entrou
-  const spentOver = ratioOf(spentCents) > 1;
-  const plannedOver = ratioOf(totals.gastos) > 1;
-  const over = mode === "andamento" ? spentOver : plannedOver;
-  const meterText =
-    totals.entradas === 0
-      ? "Nenhuma entrada registrada neste mês."
-      : mode === "andamento"
-        ? over
-          ? `Os gastos já passaram o que entrou em ${spentPct - 100}%.`
-          : `${spentPct}% do que entrou já saiu.`
-        : mode === "futuro"
-          ? over
-            ? `Os gastos previstos passam o que entrou em ${plannedPct - 100}%.`
-            : `${plannedPct}% do que entrou já está comprometido.`
-          : over
-            ? `Os gastos passaram o que entrou em ${plannedPct - 100}%.`
-            : `${plannedPct}% do que entrou já foi gasto.`;
-  const solidColor = spentOver ? "#ff9aa5" : "#7fd8c8";
-  const stripedColor = plannedOver ? "#ff9aa5" : "#7fd8c8";
-
-  // Ainda vai sair: contas não pagas, cobranças do cartão por vir e gastos com data futura
-  const upcomingBills = summary.upcoming.filter(
-    (e) => e.kind !== "avulso" && !e.onCard,
-  ).length;
-  const upcomingCard = summary.upcoming.filter(
-    (e) => e.kind !== "avulso" && e.onCard,
-  ).length;
-  const upcomingOther = summary.upcoming.filter(
-    (e) => e.kind === "avulso",
-  ).length;
-  const upcomingHint = joinPt(
-    [
-      upcomingBills && `${upcomingBills} ${upcomingBills === 1 ? "conta" : "contas"}`,
-      upcomingCard && `${upcomingCard} no cartão`,
-      upcomingOther &&
-        `${upcomingOther} ${upcomingOther === 1 ? "gasto agendado" : "gastos agendados"}`,
-    ].filter((x): x is string => !!x),
-  );
-  const upcomingHref = upcomingBills
-    ? `/fixos?m=${month}`
-    : upcomingCard
-      ? `/fixos?m=${month}&aba=cartao`
-      : `/lancamentos?m=${month}&f=todos`;
   const recent = summary.entries
     .filter((e) => e.kind === "avulso")
     .sort((a, b) => b.id - a.id)
@@ -203,17 +144,28 @@ export default async function Painel({
       };
     });
 
-  // Resumo para compartilhar (texto curto com o mais importante do mês)
+  // Resumo para compartilhar (texto curto com o mais importante do mês): o mesmo extrato do cartão do saldo
+  const shareRows: ReportData["rows"] = [
+    { emoji: "⬇️", label: view.income.label, cents: view.income.cents },
+    ...view.outs.map((p) => ({ emoji: SHARE_EMOJI[p.key], label: p.label, cents: -p.cents })),
+  ];
+  if (view.mode === "andamento")
+    shareRows.splice(view.outs.some((p) => p.key === "conta") ? 2 : 1, 0, {
+      emoji: "🏦",
+      label: "Na conta hoje",
+      cents: view.naConta,
+      bold: true,
+    });
   const report: ReportData = {
     monthTitle: monthPhrase(month),
     partial: isCurrent,
+    mode: view.mode,
+    heroLabel: view.heroLabel,
     entradas: totals.entradas,
     gastos: totals.gastos,
-    mode,
-    saiu: totals.saiu,
-    aSair: totals.aSair,
-    saldoHoje,
     saldo: totals.saldo,
+    naConta: view.naConta,
+    rows: shareRows,
     pending: summary.pending.map((e) => ({
       date: e.date,
       name: e.name,
@@ -266,92 +218,7 @@ export default async function Painel({
           {/* cards em uma coluna; a ordem vem de "order-N" */}
           <div className="contents">
             {/* Saldo do mês: o destaque da tela */}
-            <section
-              aria-labelledby="saldo-titulo"
-              className="order-1 mx-3 mt-1 overflow-hidden rounded-[24px] bg-ink p-5 text-white lg:mx-0 lg:mt-0 lg:p-7"
-            >
-              <h2 id="saldo-titulo" className="text-[15px] text-white/70">
-                {heroLabel}
-              </h2>
-              <p
-                className={`display mt-1 text-[clamp(42px,12.5vw,64px)] leading-[0.95] font-[750] tracking-[-0.02em] ${
-                  heroCents < 0 ? "text-[#ff9aa5]" : "text-white"
-                }`}
-                style={{ fontStretch: "82%" }}
-              >
-                <Money cents={heroCents} />
-              </p>
-
-              <div className="mt-5">
-                <div
-                  className="flex h-2.5 overflow-hidden rounded-full bg-white/15"
-                  role="meter"
-                  aria-label="Quanto do que entrou já saiu"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={solidBar}
-                  aria-valuetext={meterText}
-                >
-                  <div
-                    className="h-full"
-                    style={{ width: `${solidBar}%`, background: solidColor }}
-                  />
-                  {stripedBar > 0 && (
-                    <div
-                      className="h-full"
-                      style={{ width: `${stripedBar}%`, background: stripes(stripedColor) }}
-                    />
-                  )}
-                </div>
-                <p
-                  className={`mt-2 text-[14px] ${over ? "font-medium text-[#ff9aa5]" : "text-white/70"}`}
-                >
-                  {meterText}
-                </p>
-              </div>
-
-              {/* Extrato do mês: entrou − já saiu − ainda vai sair = saldo no fim do mês */}
-              <div className="mt-5 overflow-hidden rounded-2xl bg-white/[0.07]">
-                <ul>
-                  <StatementRow
-                    href={`/lancamentos?m=${month}&tab=entradas`}
-                    marker={<Marker kind="total" />}
-                    label="Entrou"
-                    cents={totals.entradas}
-                  />
-                  {(mode !== "futuro" || totals.saiu !== 0) && (
-                    <StatementRow
-                      href={`/lancamentos?m=${month}&f=todos`}
-                      marker={<Marker kind="solid" color={solidColor} />}
-                      label={mode === "fechado" ? "Saiu" : "Já saiu"}
-                      cents={spentCents}
-                    />
-                  )}
-                  {mode !== "fechado" && (
-                    <StatementRow
-                      href={upcomingHref}
-                      marker={<Marker kind="striped" color={stripedColor} />}
-                      label={mode === "futuro" ? "Vai sair" : "Ainda vai sair"}
-                      hint={upcomingHint}
-                      cents={totals.aSair}
-                    />
-                  )}
-                </ul>
-                {mode === "andamento" && (
-                  <div className="flex items-center gap-3 border-t border-white/15 px-4 py-3.5">
-                    <span className="min-w-0 flex-1 text-[15px] font-medium">
-                      Saldo no fim do mês
-                    </span>
-                    <Money
-                      cents={totals.saldo}
-                      className={`text-[18px] font-semibold ${totals.saldo < 0 ? "text-[#ff9aa5]" : ""}`}
-                    />
-                    {/* mesmo espaço da seta das linhas, para os valores ficarem alinhados */}
-                    <span className="size-4 shrink-0" aria-hidden />
-                  </div>
-                )}
-              </div>
-            </section>
+            <BalanceCard view={view} className="order-1" />
 
             {/* Por categoria */}
             {(catRows.length > 0 || uncategorized) && (
@@ -664,73 +531,5 @@ export default async function Painel({
         </div>
       </PendingSwap>
     </>
-  );
-}
-
-/** "2 contas, 3 cobranças no cartão e 1 gasto agendado" */
-function joinPt(parts: string[]) {
-  return parts.length > 1
-    ? `${parts.slice(0, -1).join(", ")} e ${parts[parts.length - 1]}`
-    : (parts[0] ?? "");
-}
-
-const stripes = (color: string) =>
-  `repeating-linear-gradient(-45deg, ${color} 0 3px, transparent 3px 6px)`;
-
-/** Legenda da barra: trilho = o que entrou (a barra toda), cheio = já saiu, listrado = ainda vai sair. */
-function Marker({
-  kind,
-  color = "#7fd8c8",
-}: {
-  kind: "total" | "solid" | "striped";
-  color?: string;
-}) {
-  return (
-    <span
-      className={`h-2.5 w-4 shrink-0 rounded-full ${kind === "total" ? "bg-white/25" : ""}`}
-      style={
-        kind === "solid"
-          ? { background: color }
-          : kind === "striped"
-            ? { background: stripes(color), boxShadow: `inset 0 0 0 1px ${color}` }
-            : undefined
-      }
-      aria-hidden
-    />
-  );
-}
-
-function StatementRow({
-  href,
-  marker,
-  label,
-  hint,
-  cents,
-}: {
-  href: string;
-  marker: React.ReactNode;
-  label: string;
-  hint?: string;
-  cents: number;
-}) {
-  return (
-    <li className="border-t border-white/10 first:border-t-0">
-      <Link
-        href={href}
-        className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05]"
-      >
-        {marker}
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] text-white/85">{label}</span>
-          {hint && (
-            <span className="block truncate text-[12px] text-white/55">
-              {hint}
-            </span>
-          )}
-        </span>
-        <Money cents={cents} className="text-[16px] font-semibold" />
-        <Chevron className="size-4 shrink-0 text-white/40" />
-      </Link>
-    </li>
   );
 }

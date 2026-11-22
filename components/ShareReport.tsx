@@ -9,14 +9,15 @@ import { formatBRL } from "@/lib/format";
 export interface ReportData {
   monthTitle: string; // "novembro de 2026"
   partial: boolean;
-  entradas: number;
-  /** fechado: nada mais por sair; andamento: mês atual com coisas por sair; futuro: mês que não começou */
+  /** fechado: nada mais por sair; andamento: mês atual com fatura ou contas por sair; futuro: mês que não começou */
   mode: "fechado" | "andamento" | "futuro";
+  heroLabel: string; // "Saldo no fim do mês", "Saldo previsto de dezembro"...
+  entradas: number;
   gastos: number; // tudo o que é do mês (previsto)
-  saiu: number; // o que já saiu de fato até hoje
-  aSair: number; // o que ainda vai sair
-  saldoHoje: number; // entradas − o que já saiu
   saldo: number; // entradas − tudo o que é do mês
+  naConta: number; // entradas − o que já saiu da conta (a fatura do cartão ainda está na conta)
+  /** As linhas do extrato do Painel, com os mesmos nomes (saídas com valor negativo) */
+  rows: { emoji: string; label: string; cents: number; bold?: boolean }[];
   pending: {
     date: string | null;
     name: string;
@@ -47,24 +48,15 @@ function buildText(
   lines.push(`📊 *Resumo de ${r.monthTitle}*${r.partial ? " (até hoje)" : ""}`);
   if (note.trim()) lines.push("", note.trim());
   lines.push("");
-  const pct = (v: number) =>
-    r.entradas > 0 ? ` (${Math.round((v / r.entradas) * 100)}% do que entrou)` : "";
-  if (r.mode === "andamento") {
-    lines.push(`💰 Saldo hoje: *${money(r.saldoHoje)}*`);
-    lines.push(`⬇️ Entrou: ${money(r.entradas)}`);
-    lines.push(`⬆️ Já saiu: ${money(r.saiu)}${pct(r.saiu)}`);
-    lines.push(`⏳ Ainda vai sair: ${money(r.aSair)}`);
-    lines.push(`📅 Saldo no fim do mês: *${money(r.saldo)}*`);
-  } else if (r.mode === "futuro") {
-    lines.push(`💰 Saldo previsto: *${money(r.saldo)}*`);
-    lines.push(`⬇️ Entrou: ${money(r.entradas)}`);
-    if (r.saiu !== 0) lines.push(`⬆️ Já saiu: ${money(r.saiu)}`);
-    lines.push(`⏳ Vai sair: ${money(r.aSair)}`);
-  } else {
-    lines.push(`💰 Saldo: *${money(r.saldo)}*`);
-    lines.push(`⬇️ Entrou: ${money(r.entradas)}`);
-    lines.push(`⬆️ Saiu: ${money(r.gastos)}${pct(r.gastos)}`);
-  }
+  // Mesmo extrato do Painel: o saldo em destaque e, embaixo, de onde ele vem
+  const pct =
+    r.entradas > 0
+      ? ` (${Math.round((r.gastos / r.entradas) * 100)}% do que ${r.mode === "futuro" ? "vai entrar" : "entrou"})`
+      : "";
+  lines.push(`💰 ${r.heroLabel}: *${money(r.saldo)}*`);
+  for (const row of r.rows)
+    lines.push(`${row.emoji} ${row.label}: ${row.bold ? `*${money(row.cents)}*` : money(row.cents)}`);
+  lines.push(`🧮 Gastos do mês: ${money(r.gastos)}${pct}`);
 
   if (on.pagar) {
     lines.push("");

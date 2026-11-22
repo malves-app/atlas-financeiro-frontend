@@ -97,32 +97,33 @@ export function PainelBodySkeleton() {
         <span className="mt-1 flex items-center" style={{ height: "calc(0.95 * clamp(42px, 12.5vw, 64px))" }}>
           <Bone dark className="block h-[78%] w-[62%] max-w-80 rounded-2xl" />
         </span>
-        <div className="mt-5">
-          <Bone dark className="block h-2.5 w-full rounded-full" />
-          <TextBone dark size={14} w="w-48" className="mt-2" />
+        {/* barras Entrou × Gastos */}
+        <div className="mt-5 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2">
+          <TextBone dark size={12} w="w-10" />
+          <Bone dark className="block h-2 w-[78%] rounded-full" />
+          <TextBone dark size={12} w="w-10" />
+          <Bone dark className="block h-2 w-full rounded-full" />
         </div>
+        <TextBone dark size={14} w="w-64" className="mt-2.5" />
+        {/* extrato: entrou, já saiu da conta, na conta hoje, fatura, contas, saldo */}
         <div className="mt-5 overflow-hidden rounded-2xl bg-white/[0.07]">
           {[
-            ["w-14", "w-24"],
-            ["w-16", "w-20"],
-            ["w-28", "w-[5.5rem]"],
-          ].map(([label, value]) => (
-            <div key={label} className="flex items-center gap-3 border-t border-white/10 px-4 py-3 first:border-t-0">
-              <Bone dark className="block h-2.5 w-4 shrink-0 rounded-full" />
+            ["row", "w-14", "w-24"],
+            ["row", "w-28", "w-24"],
+            ["total", "w-28", "w-24"],
+            ["row", "w-28", "w-24"],
+            ["row", "w-24", "w-20"],
+            ["total", "w-36", "w-24"],
+          ].map(([kind, label, value], i) => (
+            <div key={i} className="flex items-center gap-3 border-t border-white/10 px-4 py-3 first:border-t-0">
+              {kind === "row" && <Bone dark className="block h-2.5 w-4 shrink-0 rounded-full" />}
               <span className="min-w-0 flex-1">
                 <TextBone dark w={label} />
               </span>
-              <TextBone dark size={16} w={value} />
+              <TextBone dark size={kind === "row" ? 16 : 18} w={value} />
               <span className="size-4 shrink-0" />
             </div>
           ))}
-          <div className="flex items-center gap-3 border-t border-white/15 px-4 py-3.5">
-            <span className="min-w-0 flex-1">
-              <TextBone dark w="w-36" />
-            </span>
-            <TextBone dark size={18} w="w-24" />
-            <span className="size-4 shrink-0" />
-          </div>
         </div>
       </section>
 

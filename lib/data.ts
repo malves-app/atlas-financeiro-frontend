@@ -305,6 +305,14 @@ export interface MonthSummary {
     saiu: number;
     /** O que ainda vai sair no mês: contas não pagas, cobranças do cartão por vir, gastos com data futura. */
     aSair: number;
+    // Conta × cartão: o que é pago no crédito só sai da conta quando a fatura é paga, então, no mês atual,
+    // a fatura ainda está na conta. contaSaiu + contaASair + credito = gastos.
+    /** Fora do cartão e já saiu: contas pagas e gastos até hoje (num mês que acabou, tudo fora do cartão). */
+    contaSaiu: number;
+    /** Fora do cartão e ainda vai sair: contas não pagas e gastos com data futura. */
+    contaASair: number;
+    /** Tudo o que é do mês no cartão de crédito (a fatura do mês), cobrado ou por vir. */
+    credito: number;
   };
   byPayment: { paymentMethodId: number | null; total: number }[];
   byCategory: { categoryId: number | null; total: number; count: number }[];
@@ -371,6 +379,8 @@ export async function getMonth(month: string): Promise<MonthSummary> {
     )
     .sort((a, b) => (a.date ?? "99").localeCompare(b.date ?? "99"));
   const aSair = sum(upcoming);
+  const credito = sum(entries.filter(onCard));
+  const contaASair = sum(upcoming.filter((e) => !e.onCard));
 
   return {
     month,
@@ -385,6 +395,9 @@ export async function getMonth(month: string): Promise<MonthSummary> {
       avulso: sum(entries.filter((e) => e.kind === "avulso")),
       saiu: gastos - aSair,
       aSair,
+      contaSaiu: gastos - credito - contaASair,
+      contaASair,
+      credito,
     },
     byPayment,
     byCategory,

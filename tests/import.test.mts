@@ -126,6 +126,21 @@ assert.equal((await data.getMonth("2026-11")).pending.length, 1);
   const m = await data.getMonth("2026-11");
   assert.equal(m.totals.gastos, 1393973, "previsto continua o total do mês");
   assert.equal(m.totals.saiu + m.totals.aSair, m.totals.gastos, "real + a sair = previsto");
+  assert.equal(m.totals.contaSaiu + m.totals.contaASair + m.totals.credito, m.totals.gastos, "conta + cartão = previsto");
+  const pms = await data.listPaymentMethods();
+  const credit = new Set(pms.filter((x) => x.isCredit).map((x) => x.id));
+  const known = new Set(pms.map((x) => x.id));
+  // sem forma de pagamento (ou removida), vale o tipo: fixo do cartão é do cartão
+  const onCredit = m.entries.filter((e) =>
+    e.paymentMethodId != null && known.has(e.paymentMethodId) ? credit.has(e.paymentMethodId) : e.kind === "cartao",
+  );
+  assert.ok(m.totals.credito > 0 && m.totals.contaSaiu > 0, "novembro tem gastos na conta e no cartão");
+  assert.equal(m.totals.credito, onCredit.reduce((a, e) => a + e.amountCents, 0), "cartão = tudo do mês no crédito");
+  assert.equal(
+    m.totals.contaASair,
+    m.upcoming.filter((e) => !e.onCard).reduce((a, e) => a + e.amountCents, 0),
+    "fora do cartão, a sair = contas não pagas e gastos com data futura",
+  );
   const up = new Set(m.upcoming.map((e) => e.id));
   assert.ok(m.pending.every((e) => up.has(e.id)), "toda conta a pagar ainda vai sair");
   assert.ok(!up.has(m.entries.find((e) => e.name === "Condomínio")!.id), "conta paga já saiu");
@@ -217,7 +232,12 @@ assert.equal((await data.getIncomeSuggestions())[0], "Plantão extra");
   // Compra parcelada lançada pelo "Lançar gasto": vira fixo do cartão, inclusive numa fatura que já passou
   const { shiftMonth } = await import("../lib/format");
   const start = shiftMonth(now, -1);
-  assert.equal((await data.getMonth(start)).totals.aSair, 0, "mês que passou: tudo já saiu"); // e fica montado
+  {
+    const past = (await data.getMonth(start)).totals; // e fica montado
+    assert.equal(past.aSair, 0, "mês que passou: tudo já saiu");
+    assert.equal(past.contaASair, 0, "mês que passou: nada por sair da conta");
+    assert.equal(past.contaSaiu + past.credito, past.gastos);
+  }
   await data.createRecurring(
     { kind: "cartao", name: "Fogão", amountCents: 30000, day: 20, paymentMethodId: card.id, categoryId: null, installments: 10, startMonth: start },
     { backfill: true },
