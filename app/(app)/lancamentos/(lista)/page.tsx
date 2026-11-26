@@ -9,6 +9,7 @@ import { OptimisticLink, ParamShow, PendingSwap } from "@/components/NavState";
 import { LancamentosListSkeleton } from "@/components/PageSkeletons";
 import { SubmitButton } from "@/components/SubmitButton";
 import { fillCategoriesFromHistory } from "@/app/actions";
+import { filterEntries, readEntryFilter } from "@/lib/entries-export";
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +20,30 @@ const FILTERS = [
   { id: "sem-categoria", label: "Sem categoria" },
 ];
 
-const norm = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+/** Baixa a planilha (CSV) do que está na tela. Link comum: é um download, não uma página. */
+function ExportLink({ href, what }: { href: string; what: string }) {
+  return (
+    <a
+      href={href}
+      download
+      title={`Baixar ${what} numa planilha (CSV, abre no Excel e no Google Sheets)`}
+      className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-[13px] font-semibold text-brand ring-1 ring-line transition-colors hover:ring-brand/40"
+    >
+      <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" />
+      </svg>
+      Exportar
+    </a>
+  );
+}
 
 export default async function Lancamentos({ searchParams }: { searchParams: SearchParams }) {
   const { month, get } = await readParams(searchParams);
   const tab = get("tab") === "entradas" ? "entradas" : "gastos";
-  const f = get("f") ?? "";
-  const q = (get("q") ?? "").trim();
-  const cat = get("cat");
-  const pm = get("pm");
+  const filter = readEntryFilter(get);
+  const { f, q } = filter;
+  const cat = filter.cat ?? undefined;
+  const pm = filter.pm ?? undefined;
   const [methods, categories, summary, subNames] = await Promise.all([listPaymentMethods(), listCategories(), getMonth(month), subcategoryLookup()]);
   const catById = new Map(categories.map((c) => [c.id, c]));
   const methodById = new Map(methods.map((m) => [m.id, m]));
@@ -43,13 +55,9 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
     return `/lancamentos?${sp.toString()}`;
   };
 
-  let entries: Entry[] = summary.entries;
-  if (!f && !cat && !pm) entries = entries.filter((e) => e.kind === "avulso");
-  if (f === "fixos") entries = entries.filter((e) => e.kind !== "avulso");
-  if (pm) entries = entries.filter((e) => String(e.paymentMethodId) === pm);
-  if (f === "sem-categoria") entries = entries.filter((e) => e.categoryId == null);
-  if (cat) entries = entries.filter((e) => (cat === "sem" ? e.categoryId == null : String(e.categoryId) === cat));
-  if (q) entries = entries.filter((e) => norm(e.name).includes(norm(q)));
+  // O mesmo filtro da exportação (lib/entries-export.ts): a planilha sai igual à lista
+  const entries: Entry[] = filterEntries(summary.entries, filter);
+  const exportHref = (over: Record<string, string | undefined>) => params(over).replace(/^\/lancamentos\?/, "/exportar/lancamentos?");
 
   const groups = new Map<string, Entry[]>();
   for (const e of [...entries].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || b.id - a.id)) {
@@ -160,9 +168,13 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
             </form>
           )}
 
-          <p className="mx-5 mt-4 mb-2 flex justify-between text-[14px] text-ink-2 lg:mx-1">
-            <span>
+          <p className="mx-5 mt-4 mb-2 flex items-center justify-between gap-3 text-[14px] text-ink-2 lg:mx-1">
+            <span className="flex items-center gap-2.5">
               {entries.length} {entries.length === 1 ? "lançamento" : "lançamentos"}
+              {entries.length > 0 && <ExportLink
+                  href={exportHref({})}
+                  what={entries.length === 1 ? "este lançamento" : `estes ${entries.length} lançamentos`}
+                />}
             </span>
             <Money cents={total} className="font-semibold text-ink" />
           </p>
@@ -225,9 +237,15 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
 
       <ParamShow name="tab" value="entradas" current={tab} fallback="gastos">
         <PendingSwap keys={["m"]} fallback={<LancamentosListSkeleton tab="entradas" />}>
-          <p className="mx-5 mt-4 mb-2 flex justify-between text-[14px] text-ink-2 lg:mx-1">
-            <span>
+          <p className="mx-5 mt-4 mb-2 flex items-center justify-between gap-3 text-[14px] text-ink-2 lg:mx-1">
+            <span className="flex items-center gap-2.5">
               {summary.incomes.length} {summary.incomes.length === 1 ? "entrada" : "entradas"}
+              {summary.incomes.length > 0 && (
+                <ExportLink
+                  href={`/exportar/lancamentos?m=${month}&tab=entradas`}
+                  what={summary.incomes.length === 1 ? "esta entrada" : `estas ${summary.incomes.length} entradas`}
+                />
+              )}
             </span>
             <Money cents={summary.totals.entradas} className="font-semibold text-brand" />
           </p>

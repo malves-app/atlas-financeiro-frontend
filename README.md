@@ -11,7 +11,9 @@ O que tem:
 - **Lançar** (botão + no meio da barra): valor, descrição, cartão ou conta, categoria e data. Ao digitar um nome que você
   já usou (Uber, Assaí...), o site sugere a categoria e a forma de pagamento de antes.
 - **Lançamentos**: lista do mês por dia, com busca e filtros (dia a dia, fixos, cartão, conta, sem categoria). Para
-  meses com gastos sem categoria (junho e novembro na planilha), há o botão "Preencher pelo histórico".
+  meses com gastos sem categoria (junho e novembro na planilha), há o botão "Preencher pelo histórico". O botão
+  **Exportar** baixa uma planilha (CSV, abre no Excel e no Google Sheets) com exatamente o que está na tela: mês, aba,
+  filtro, forma de pagamento, categoria e busca.
 - **Fixos**: contas do mês com "pago?", assinaturas e parcelas do cartão com a contagem (ex.: 9/10) e o mês em que
   terminam. Todo mês novo é montado sozinho a partir dos fixos cadastrados; parcelas acabam na última.
 - **Estatísticas**: abre no ano atual (também dá para escolher outro ano ou os últimos 12 meses). Saldo do período,
