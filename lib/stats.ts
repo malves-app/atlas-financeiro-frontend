@@ -1,6 +1,7 @@
 import { getSupabase } from "./supabase/server";
 import { must } from "./must";
 import { currentMonth, daysInMonth, isMonth, monthDiff, shiftMonth, todayISO } from "./format";
+import { methodColor } from "./payment-icons";
 
 // Estatísticas de um período (intervalo de meses; o padrão é o ano atual).
 // Os cálculos ficam em computeStats (função pura, testada); loadStats só busca os dados.
@@ -360,19 +361,19 @@ export async function loadLookups(): Promise<StatLookups> {
   const now = currentMonth();
   const [cats, methods, firstEntry, firstIncome] = await Promise.all([
     sb.from("categories").select("id, name, emoji"),
-    sb.from("payment_methods").select("id, name, color, sort"),
+    sb.from("payment_methods").select("id, name, color, bank, sort"),
     sb.from("entries").select("month").order("month").limit(1),
     sb.from("incomes").select("month").order("month").limit(1),
   ]);
   const catRows = (must(cats, "ler as categorias") ?? []) as { id: number; name: string; emoji: string | null }[];
-  const methodRows = (must(methods, "ler as formas de pagamento") ?? []) as { id: number; name: string; color: string; sort: number }[];
+  const methodRows = (must(methods, "ler as formas de pagamento") ?? []) as { id: number; name: string; color: string; bank: string | null; sort: number }[];
   const firsts = [
     ...((must(firstEntry, "ler o primeiro mês") ?? []) as { month: string }[]),
     ...((must(firstIncome, "ler o primeiro mês") ?? []) as { month: string }[]),
   ].map((r) => r.month);
   return {
     categories: new Map(catRows.map((c) => [Number(c.id), { name: c.name, emoji: c.emoji }])),
-    methods: new Map(methodRows.map((m) => [Number(m.id), { name: m.name, color: m.color, sort: m.sort }])),
+    methods: new Map(methodRows.map((m) => [Number(m.id), { name: m.name, color: methodColor(m.bank, m.color), sort: m.sort }])),
     firstMonth: [now, ...firsts].sort()[0],
   };
 }

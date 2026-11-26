@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listCategories, listPaymentMethods } from "@/lib/data";
+import { listCategories, listPaymentMethods, listSubcategories, withSubcategories } from "@/lib/data";
 import { readParams, type SearchParams } from "@/lib/page";
 import { RecurringForm } from "@/components/RecurringForm";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NovoFixo({ searchParams }: { searchParams: SearchParams }) {
   const { month } = await readParams(searchParams);
-  const [categories, methods] = await Promise.all([listCategories(), listPaymentMethods()]);
+  const [categories, methods, subs] = await Promise.all([listCategories(), listPaymentMethods(), listSubcategories()]);
   return (
     <div className="lg:mx-auto lg:max-w-xl">
       <header className="flex items-center gap-2 px-2 pt-[max(env(safe-area-inset-top),10px)] pb-1 lg:px-0 lg:pt-2 lg:pb-4">
@@ -18,7 +18,7 @@ export default async function NovoFixo({ searchParams }: { searchParams: SearchP
         </Link>
         <h1 className="display text-[20px] font-bold">Novo fixo</h1>
       </header>
-      <RecurringForm categories={categories.map(({ id, name, emoji }) => ({ id, name, emoji }))} methods={methods} month={month} />
+      <RecurringForm categories={withSubcategories(categories, subs)} methods={methods} month={month} />
     </div>
   );
 }

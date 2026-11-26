@@ -25,10 +25,20 @@ O que tem:
   mês. Ao criar, sugere a média dos últimos meses. Mudar o valor vale do mês na tela em diante (os meses que passaram
   ficam com o valor antigo). As metas também aparecem no Painel (cartão "Metas" e as metas das categorias em "Por
   categoria") e na janela de lançar, que mostra como o gasto mexe nas metas do mês antes de salvar.
-- **Ajustes**: formas de pagamento (o "Tipo" da planilha: Conta Corrente, Crédito, Pix, outros cartões, cada cartão com
-  seu dia de fechamento), categorias e importação da planilha.
+- **Configurações** (antes "Ajustes"; `/ajustes` leva para cá): visão geral com três partes, cada uma com a sua página de
+  detalhes e ações.
+  - **Formas de pagamento**: contas e cartões de crédito separados; cada uma com tipo (conta, crédito, débito, Pix, dinheiro,
+    vale, carteira digital, boleto, poupança, outro), banco opcional (selo com as iniciais e a cor dos bancos mais comuns),
+    dia de fechamento (crédito). Com banco, a cor da forma de pagamento (selos e gráficos) é a do banco; sem banco, uma
+    cor da paleta.
+  - **Categorias**: categorias amplas com **subcategorias** (Alimentação → Supermercado, Restaurante, Delivery...). Ícone
+    escolhido numa lista com busca (sem digitar emoji), também nas subcategorias (que já nascem com um ícone que combine
+    com o nome; sem ícone próprio, usam o da categoria). As subcategorias aparecem no lançamento logo abaixo da categoria
+    escolhida (opcional); metas, Painel e Estatísticas continuam somando pela categoria.
+  - **Conta**: e-mail do cadastro e sair (senha e dados pessoais virão aqui).
+- **Importar planilha**: fora do menu; só pelo endereço `/configuracoes/importar`.
 - **Criar conta**: tela de cadastro com e-mail e senha. Cada conta tem os próprios dados.
-- Funciona no celular (barra embaixo; Metas e Ajustes ficam nos ícones do topo do Painel) e no computador (menu lateral), sempre em
+- Funciona no celular (barra embaixo; Metas, Investimentos e Configurações ficam nos ícones do topo do Painel) e no computador (menu lateral), sempre em
   uma coluna. Ao ver outro mês, o botão "Voltar para novembro" leva de volta ao mês atual.
 
 ## Configurar o Supabase (uma vez)
@@ -57,7 +67,7 @@ npm install
 npm run dev        # abre em http://localhost:3000
 ```
 
-Entre com o usuário criado no passo 2 e vá em **Ajustes → Importar planilha**, cole o link da planilha (ela precisa estar
+Entre com o usuário criado no passo 2 e abra **`/configuracoes/importar`** (o importador não aparece no menu), cole o link da planilha (ela precisa estar
 compartilhada como "qualquer pessoa com o link pode ver"). Para abrir no celular na mesma rede Wi‑Fi, use o endereço "Network" que o
 `npm run dev` mostra.
 
@@ -106,7 +116,7 @@ No iPhone: Safari → Compartilhar → **Adicionar à Tela de Início**. No Andr
 | Cartão de Crédito, "Parcelas" 05/10  | Fixos → Assinaturas e Parcelas no cartão      |
 | Gastos do Mês                        | Lançamentos (dia a dia)                       |
 | Entradas                             | Lançamentos → Entradas                        |
-| Saídas: Conta Corrente, Crédito      | Formas de pagamento (Ajustes), configuráveis  |
+| Saídas: Conta Corrente, Crédito      | Formas de pagamento (Configurações)           |
 | Tipo de cada gasto                   | Forma de pagamento do lançamento              |
 | Datas -31, -30 (mês anterior)        | Compras do cartão após o fechamento (dia 25)  |
 
@@ -123,7 +133,7 @@ os que a própria planilha mostra.
 
 ## Estrutura
 
-- `app/`: telas (painel, novo, lançamentos, fixos, estatísticas, ajustes, login) e `actions.ts` (salvar, excluir, importar, entrar)
+- `app/`: telas (painel, novo, lançamentos, fixos, estatísticas, metas, investimentos, configurações, login) e `actions.ts` (salvar, excluir, importar, entrar)
 - `proxy.ts`: renova a sessão do Supabase e manda para o login quem não entrou
 - `components/NavState.tsx`, `components/RouteTransition.tsx`, `components/PageSkeletons.tsx`: carregamento na hora do
   toque. Ao clicar num link, a tela já mostra o skeleton do destino (ou abre a janela com o formulário em skeleton) e

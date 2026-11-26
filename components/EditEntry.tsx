@@ -23,6 +23,7 @@ export interface EntryEditorData {
     date: string | null;
     paymentMethodId: number | null;
     categoryId: number | null;
+    subcategoryId?: number | null;
     month: string;
     paid: boolean | null;
     installmentNo: number | null;

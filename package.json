@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx tests/schema.test.mts && tsx tests/realized.test.mts && tsx tests/balance.test.mts && tsx tests/import.test.mts && tsx tests/stats.test.mts && tsx tests/goals.test.mts && tsx tests/investments.test.mts",
+    "test": "tsx tests/schema.test.mts && tsx tests/realized.test.mts && tsx tests/balance.test.mts && tsx tests/import.test.mts && tsx tests/stats.test.mts && tsx tests/goals.test.mts && tsx tests/investments.test.mts && tsx tests/settings.test.mts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

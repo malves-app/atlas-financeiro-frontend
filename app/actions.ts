@@ -10,6 +10,7 @@ import * as inv from "@/lib/investments-data";
 import { isInvestmentKind, isMoveKind, position } from "@/lib/investments";
 import { findConflict, isGoalKind, KIND_INFO } from "@/lib/goals";
 import { importFromGoogleSheet, type ImportReport } from "@/lib/import/sheet";
+import { isPaymentType } from "@/lib/payment-icons";
 
 /** ok/again/at: usados no modo modal (o formulário fecha ou limpa sozinho em vez de mudar de página). */
 export type FormState = { error?: string; ok?: boolean; again?: boolean; at?: number } | undefined;
@@ -46,6 +47,7 @@ export async function saveEntry(_: FormState, f: FormData): Promise<FormState> {
   const back = str(f, "back") || "/";
 
   if (amount == null || amount === 0) return { error: "Informe o valor." };
+  const subcategoryId = await data.checkSubcategory(categoryId, optInt(f, "subcategoryId"));
   if (!name) return { error: "Dê um nome ao gasto (ex.: Assaí, Uber)." };
   if (!paymentMethodId) return { error: "Escolha a forma de pagamento." };
 
@@ -58,7 +60,7 @@ export async function saveEntry(_: FormState, f: FormData): Promise<FormState> {
   if (id) {
     const existing = await data.getEntry(id);
     if (!existing) return { error: "Esse lançamento não existe mais." };
-    await data.updateEntry(id, { month, name, amountCents: amount, date, paymentMethodId, categoryId });
+    await data.updateEntry(id, { month, name, amountCents: amount, date, paymentMethodId, categoryId, subcategoryId });
     if (existing.kind !== "avulso") {
       // "Pago" só existe para fixos fora do cartão de crédito
       if (f.get("hasPaid") === "1") await data.setPaid(id, f.get("paid") === "on");
@@ -73,6 +75,7 @@ export async function saveEntry(_: FormState, f: FormData): Promise<FormState> {
               day: date ? Number(date.slice(8, 10)) : rec.day,
               paymentMethodId,
               categoryId,
+              subcategoryId,
               installments: rec.installments,
             },
             existing.month,
@@ -101,6 +104,7 @@ export async function saveEntry(_: FormState, f: FormData): Promise<FormState> {
           day: date ? Number(date.slice(8, 10)) : null,
           paymentMethodId,
           categoryId,
+          subcategoryId,
           installments,
           startMonth: month,
         },
@@ -111,7 +115,7 @@ export async function saveEntry(_: FormState, f: FormData): Promise<FormState> {
     }
   }
 
-  await data.createEntry({ month, kind: "avulso", name, amountCents: amount, date, paymentMethodId, categoryId });
+  await data.createEntry({ month, kind: "avulso", name, amountCents: amount, date, paymentMethodId, categoryId, subcategoryId });
   // "+ Outro" e a janela: o formulário se limpa / fecha sozinho, sem trocar de página
   if (isModal(f) || f.get("again") === "1") return modalDone(f);
   done(`/?m=${month}&ok=gasto`);
@@ -193,9 +197,10 @@ export async function saveRecurring(_: FormState, f: FormData): Promise<FormStat
   if (parcelado && (!installments || installments < 2)) return { error: "Informe em quantas parcelas." };
   if (parcelado && installments && (currentNo < 1 || currentNo > installments))
     return { error: `A parcela deste mês precisa estar entre 1 e ${installments}.` };
+  const subcategoryId = await data.checkSubcategory(categoryId, optInt(f, "subcategoryId"));
 
   if (id) {
-    await data.updateRecurring(id, { name, amountCents: amount, day, paymentMethodId, categoryId, installments }, month);
+    await data.updateRecurring(id, { name, amountCents: amount, day, paymentMethodId, categoryId, subcategoryId, installments }, month);
   } else {
     const { shiftMonth } = await import("@/lib/format");
     await data.createRecurring({
@@ -205,6 +210,7 @@ export async function saveRecurring(_: FormState, f: FormData): Promise<FormStat
       day,
       paymentMethodId,
       categoryId,
+      subcategoryId,
       installments,
       startMonth: shiftMonth(month, -(currentNo - 1)),
     });
@@ -355,45 +361,110 @@ export async function deleteInvestmentAction(f: FormData) {
   done("/investimentos?ok=investimento-apagado");
 }
 
-/* ---------- ajustes ---------- */
+/* ---------- configurações ---------- */
 
+const isDuplicate = (e: unknown) => /duplicate|unique/i.test(e instanceof Error ? e.message : String(e));
+
+/** Criar ou editar categoria (nome e ícone). Ao criar, já leva as subcategorias digitadas. */
 export async function saveCategory(_: FormState, f: FormData): Promise<FormState> {
   const id = optInt(f, "id") ?? undefined;
   const name = str(f, "name");
   const emoji = str(f, "emoji") || "🏷️";
   if (!name) return { error: "Dê um nome à categoria." };
+  if (name.length > 40) return { error: "Use um nome mais curto (até 40 letras)." };
+  if ([...emoji].length > 8) return { error: "Escolha um ícone da lista." };
+  let categoryId: number;
   try {
     // O valor previsto por mês agora é uma meta da categoria (tela Metas)
-    await data.upsertCategory({ id, name, emoji });
-  } catch {
-    return { error: "Já existe uma categoria com esse nome." };
+    categoryId = await data.upsertCategory({ id, name, emoji });
+  } catch (e) {
+    return { error: isDuplicate(e) ? "Já existe uma categoria com esse nome." : "Não consegui salvar a categoria." };
   }
-  revalidatePath("/", "layout");
-  return {};
+  if (!id) {
+    // "sub" e "subEmoji" andam juntos (um ícone para cada subcategoria digitada)
+    const names = f.getAll("sub").map((v) => String(v).trim());
+    const emojis = f.getAll("subEmoji").map((v) => String(v).trim());
+    const seen = new Set<string>();
+    for (const [i, sub] of names.entries()) {
+      if (!sub || sub.length > 40 || seen.has(sub)) continue;
+      seen.add(sub);
+      const e = emojis[i];
+      await data.createSubcategory(categoryId, sub, e && [...e].length <= 8 ? e : undefined);
+    }
+  }
+  done(`/configuracoes/categorias?ok=${id ? "categoria-salva" : "categoria-criada"}`);
 }
 
 export async function archiveCategoryAction(f: FormData) {
   const id = optInt(f, "id");
   if (id) await data.archiveCategory(id);
-  done("/ajustes?ok=categoria");
+  done("/configuracoes/categorias?ok=categoria");
 }
 
+/** Subcategorias (na tela da categoria): a página atualiza sozinha. */
+export async function addSubcategoryAction(_: FormState, f: FormData): Promise<FormState> {
+  const categoryId = optInt(f, "categoryId");
+  const name = str(f, "name");
+  const emoji = str(f, "emoji");
+  if (!categoryId) return { error: "Categoria não encontrada." };
+  if (!name) return { error: "Digite o nome da subcategoria." };
+  if (name.length > 40) return { error: "Use um nome mais curto (até 40 letras)." };
+  if ([...emoji].length > 8) return { error: "Escolha um ícone da lista." };
+  try {
+    // A tela manda o ícone (escolhido ou o que combina com o nome; vazio = sem ícone).
+    // Sem o campo, o servidor tenta um que combine com o nome.
+    await data.createSubcategory(categoryId, name, f.has("emoji") ? emoji || null : undefined);
+  } catch {
+    return { error: "Não consegui criar a subcategoria." };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, at: Date.now() };
+}
+
+export async function renameSubcategoryAction(_: FormState, f: FormData): Promise<FormState> {
+  const id = optInt(f, "id");
+  const name = str(f, "name");
+  const emoji = str(f, "emoji");
+  if (!id) return { error: "Subcategoria não encontrada." };
+  if (!name) return { error: "Digite o nome." };
+  if (name.length > 40) return { error: "Use um nome mais curto (até 40 letras)." };
+  if ([...emoji].length > 8) return { error: "Escolha um ícone da lista." };
+  try {
+    // Ícone vazio = sem ícone próprio (usa o da categoria)
+    await data.renameSubcategory(id, name, f.has("emoji") ? emoji || null : undefined);
+  } catch (e) {
+    return { error: isDuplicate(e) ? "Já existe uma subcategoria com esse nome." : "Não consegui renomear." };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, at: Date.now() };
+}
+
+export async function archiveSubcategoryAction(f: FormData) {
+  const id = optInt(f, "id");
+  if (id) await data.archiveSubcategory(id);
+  revalidatePath("/", "layout");
+}
+
+/** Criar ou editar forma de pagamento: nome, tipo, banco, fechamento (crédito) e cor. */
 export async function savePaymentMethod(_: FormState, f: FormData): Promise<FormState> {
   const id = optInt(f, "id") ?? undefined;
   const name = str(f, "name");
-  const isCredit = f.get("isCredit") === "on";
+  const type = str(f, "type");
+  const icon = isPaymentType(type) ? type : "conta";
+  const isCredit = icon === "credito";
   const closingDay = optInt(f, "closingDay");
-  const color = str(f, "color") || undefined;
+  const bank = str(f, "bank") || null;
   if (!name) return { error: "Dê um nome (ex.: Pix, Nubank, Dinheiro)." };
-  if (isCredit && closingDay != null && (closingDay < 1 || closingDay > 31))
+  if (name.length > 40) return { error: "Use um nome mais curto (até 40 letras)." };
+  if (isCredit && (closingDay == null || closingDay < 1 || closingDay > 31))
     return { error: "O dia de fechamento precisa estar entre 1 e 31." };
   try {
-    await data.upsertPaymentMethod({ id, name, isCredit, closingDay, color });
+    // A cor vem do banco (ou, sem banco, fica a da paleta)
+    await data.upsertPaymentMethod({ id, name, isCredit, closingDay, icon, bank });
   } catch (e) {
-    return { error: /duplicate|unique/i.test(String(e)) ? "Já existe uma forma de pagamento com esse nome." : String(e) };
+    return { error: isDuplicate(e) ? "Já existe uma forma de pagamento com esse nome." : "Não consegui salvar a forma de pagamento." };
   }
-  revalidatePath("/", "layout");
-  return {};
+  done(`/configuracoes/pagamentos?ok=${id ? "pagamento-salvo" : "pagamento-criado"}`);
 }
 
 export async function archivePaymentMethodAction(f: FormData) {
@@ -402,10 +473,10 @@ export async function archivePaymentMethodAction(f: FormData) {
     try {
       await data.archivePaymentMethod(id);
     } catch {
-      done("/ajustes?ok=pagamento-minimo");
+      done(`/configuracoes/pagamentos/${id}?ok=pagamento-minimo`);
     }
   }
-  done("/ajustes?ok=pagamento");
+  done("/configuracoes/pagamentos?ok=pagamento");
 }
 
 export type ImportState = { error?: string; report?: ImportReport } | undefined;

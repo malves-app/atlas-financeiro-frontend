@@ -35,7 +35,7 @@ export default async function Fixos({ searchParams }: { searchParams: SearchPara
 
   const byDay = (a: Entry, b: Entry) => (a.date ?? "99").localeCompare(b.date ?? "99") || a.name.localeCompare(b.name);
   const sum = (xs: Entry[]) => xs.reduce((a, e) => a + e.amountCents, 0);
-  // Quem decide a aba é a forma de pagamento (Ajustes): crédito vai para o cartão, o resto é conta.
+  // Quem decide a aba é a forma de pagamento (Configurações): crédito vai para o cartão, o resto é conta.
   // Se a forma foi removida, vale o tipo do lançamento.
   const isCard = (e: Entry) => {
     const m = e.paymentMethodId != null ? methodById.get(e.paymentMethodId) : undefined;

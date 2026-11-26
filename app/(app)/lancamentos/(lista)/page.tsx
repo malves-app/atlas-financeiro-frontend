@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Form from "next/form";
-import { getMonth, listCategories, listPaymentMethods, type Entry } from "@/lib/data";
+import { getMonth, listCategories, listPaymentMethods, subcategoryLookup, type Entry } from "@/lib/data";
 import { formatDay, formatShortDate, monthPhrase } from "@/lib/format";
 import { readParams, type SearchParams } from "@/lib/page";
 import { EmptyState, Money, Panel, PaymentTag } from "@/components/ui";
@@ -32,7 +32,7 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
   const q = (get("q") ?? "").trim();
   const cat = get("cat");
   const pm = get("pm");
-  const [methods, categories, summary] = await Promise.all([listPaymentMethods(), listCategories(), getMonth(month)]);
+  const [methods, categories, summary, subNames] = await Promise.all([listPaymentMethods(), listCategories(), getMonth(month), subcategoryLookup()]);
   const catById = new Map(categories.map((c) => [c.id, c]));
   const methodById = new Map(methods.map((m) => [m.id, m]));
 
@@ -184,6 +184,8 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
                   <ul className="pb-1.5">
                     {list.map((e) => {
                       const c = e.categoryId != null ? catById.get(e.categoryId) : undefined;
+                      // A subcategoria só aparece junto da categoria; o ícone dela, se tiver, é o da linha
+                      const sub = c && e.subcategoryId != null ? subNames.get(e.subcategoryId) : undefined;
                       return (
                         <li key={e.id}>
                           <Link
@@ -191,12 +193,15 @@ export default async function Lancamentos({ searchParams }: { searchParams: Sear
                             className="flex items-center gap-3 px-4 py-2 hover:bg-paper/60"
                           >
                             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-paper text-[17px]" aria-hidden>
-                              {c?.emoji ?? "·"}
+                              {sub?.emoji || c?.emoji || "·"}
                             </span>
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-[15px] font-medium">{e.name}</div>
                               <div className="flex flex-wrap gap-x-2.5 text-[13px] text-ink-3">
-                                <span className={c ? "" : "italic"}>{c?.name ?? "Sem categoria"}</span>
+                                <span className={c ? "" : "italic"}>
+                                  {c?.name ?? "Sem categoria"}
+                                  {sub && <span className="text-ink-3/90"> · {sub.name}</span>}
+                                </span>
                                 <PaymentTag method={e.paymentMethodId != null ? methodById.get(e.paymentMethodId) : null} />
                                 {e.kind !== "avulso" && (
                                   <span className="text-ink-2">

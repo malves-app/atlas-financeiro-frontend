@@ -1,5 +1,5 @@
-import { AjustesSkeleton } from "@/components/PageSkeletons";
+import { ConfiguracoesSkeleton } from "@/components/PageSkeletons";
 
 export default function Loading() {
-  return <AjustesSkeleton />;
+  return <ConfiguracoesSkeleton />;
 }

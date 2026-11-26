@@ -6,17 +6,21 @@ import { formatBRL, formatShortDate, monthLabel, referenceMonth, shiftMonth } fr
 import { centsText, nextCents } from "@/lib/money-mask";
 import { LogoLoader } from "./LogoLoader";
 import { GoalImpact } from "./GoalImpact";
+import { PaymentBadge } from "./SettingsVisuals";
 import type { GoalHint } from "@/lib/goals";
 
 export interface CategoryOption {
   id: number;
   name: string;
   emoji: string;
+  /** Subcategorias (Alimentação → Supermercado, Restaurante...), com ícone próprio opcional. */
+  subs?: { id: number; name: string; emoji?: string | null }[];
 }
 
 export interface SuggestionOption {
   name: string;
   categoryId: number | null;
+  subcategoryId?: number | null;
   paymentMethodId: number | null;
 }
 
@@ -26,6 +30,9 @@ export interface PaymentMethodOption {
   color: string;
   isCredit: boolean;
   closingDay: number | null;
+  /** Tipo e banco (selo da forma de pagamento). */
+  icon?: string;
+  bank?: string | null;
 }
 
 /** "page": tela inteira (redireciona ao salvar). "modal": janela/folha (fecha ao salvar). */
@@ -250,7 +257,7 @@ export function PaymentPicker({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(m.id)}
-            className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-[15px] font-semibold transition-all duration-200 ${
+            className={`flex items-center gap-2 rounded-full py-1.5 pr-3.5 pl-1.5 text-[15px] font-semibold transition-all duration-200 ${
               selected
                 ? "bg-ink text-white shadow-[0_4px_12px_-6px_rgba(23,32,51,0.6)]"
                 : on === "surface"
@@ -258,10 +265,13 @@ export function PaymentPicker({
                   : "bg-surface text-ink ring-1 ring-line hover:ring-ink-3/40"
             }`}
           >
-            <span
-              className="size-2.5 rounded-full"
-              style={{ background: m.color, boxShadow: selected ? "0 0 0 2px rgba(255,255,255,.9)" : undefined }}
-              aria-hidden
+            <PaymentBadge
+              icon={m.icon ?? (m.isCredit ? "credito" : "conta")}
+              bank={m.bank}
+              color={m.color}
+              size="xs"
+              round
+              className={selected ? "ring-2 ring-white/90" : ""}
             />
             {m.name}
           </button>
@@ -276,11 +286,16 @@ function CategoryGrid({
   categories,
   value,
   onChange,
+  sub,
+  onSubChange,
 }: {
   categories: CategoryOption[];
   value: number | null;
   onChange: (id: number | null) => void;
+  sub?: number | null;
+  onSubChange?: (id: number | null) => void;
 }) {
+  const selected = value != null ? categories.find((c) => c.id === value) : undefined;
   const [all, setAll] = useState(false);
   // celular: 7 + "Todas"; computador: 11 + "Todas"
   const MOBILE = 7;
@@ -328,7 +343,66 @@ function CategoryGrid({
           </button>
         )}
       </div>
+      {selected && onSubChange && <SubcategoryChips category={selected} value={sub ?? null} onChange={onSubChange} />}
     </fieldset>
+  );
+}
+
+/** Subcategorias da categoria escolhida (opcional): aparecem logo abaixo da grade. */
+export function SubcategoryChips({
+  category,
+  value,
+  onChange,
+  on = "surface",
+}: {
+  category: CategoryOption;
+  value: number | null;
+  onChange: (id: number | null) => void;
+  /** "surface": bloco branco (sobre o cinza da página); "paper": bloco cinza (dentro de um bloco branco). */
+  on?: "surface" | "paper";
+}) {
+  const subs = category.subs ?? [];
+  if (!subs.length) return null;
+  return (
+    <div
+      key={category.id}
+      className={`fm-pop mt-2.5 rounded-2xl p-3 ${on === "surface" ? "bg-surface ring-1 ring-line/80" : "bg-paper/70"}`}
+    >
+      <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-medium text-ink-3">
+        <span aria-hidden>{category.emoji}</span>
+        <span className="truncate">
+          Subcategoria de {category.name} <span className="text-ink-3/80">· opcional</span>
+        </span>
+      </div>
+      <div role="radiogroup" aria-label={`Subcategoria de ${category.name}`} className="flex flex-wrap gap-1.5">
+        {subs.map((s) => {
+          const active = value === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(active ? null : s.id)}
+              className={`flex items-center gap-1.5 rounded-full py-1.5 pr-3 text-[14px] font-medium transition-all duration-150 ${s.emoji ? "pl-2" : "pl-3"} ${
+                active
+                  ? "bg-ink text-white shadow-[0_4px_12px_-6px_rgba(23,32,51,0.6)]"
+                  : on === "surface"
+                    ? "bg-paper text-ink hover:bg-line/70"
+                    : "bg-surface text-ink ring-1 ring-line/80 hover:ring-ink-3/40"
+              }`}
+            >
+              {s.emoji && (
+                <span aria-hidden className="text-[15px] leading-none">
+                  {s.emoji}
+                </span>
+              )}
+              {s.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -629,6 +703,7 @@ export function ExpenseForm({
     date: string | null;
     paymentMethodId: number | null;
     categoryId: number | null;
+    subcategoryId?: number | null;
     month: string;
     paid: boolean | null;
     installmentNo: number | null;
@@ -645,7 +720,13 @@ export function ExpenseForm({
   const [name, setName] = useState(entry?.name ?? "");
   const [paymentId, setPaymentId] = useState<number | null>(entry ? entry.paymentMethodId : defaultMethodId(methods));
   const method = methods.find((m) => m.id === paymentId);
-  const [categoryId, setCategoryId] = useState<number | null>(entry?.categoryId ?? null);
+  const [categoryId, setCategoryIdRaw] = useState<number | null>(entry?.categoryId ?? null);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(entry?.subcategoryId ?? null);
+  // Trocar de categoria limpa a subcategoria (ela é de uma categoria só)
+  const setCategoryId = (id: number | null, sub: number | null = null) => {
+    setCategoryIdRaw(id);
+    setSubcategoryId(id != null ? sub : null);
+  };
   const [date, setDate] = useState(entry ? entry.date ?? "" : today);
   const [touchedCategory, setTouchedCategory] = useState(!!entry);
   const [nameFocused, setNameFocused] = useState(false);
@@ -669,11 +750,14 @@ export function ExpenseForm({
   }, [name, suggestions]);
 
   const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  /** A subcategoria da sugestão só vale se ainda existir dentro da categoria. */
+  const validSub = (catId: number, subId: number | null | undefined) =>
+    subId != null && catById.get(catId)?.subs?.some((x) => x.id === subId) ? subId : null;
 
   const applySuggestion = (s: SuggestionOption) => {
     setName(s.name);
     if (s.paymentMethodId != null && methods.some((m) => m.id === s.paymentMethodId)) setPaymentId(s.paymentMethodId);
-    if (s.categoryId != null) setCategoryId(s.categoryId);
+    if (s.categoryId != null) setCategoryId(s.categoryId, validSub(s.categoryId, s.subcategoryId));
     setTouchedCategory(true);
   };
 
@@ -683,7 +767,7 @@ export function ExpenseForm({
       const exact = suggestions.find((s) => norm(s.name) === norm(v));
       if (exact) {
         if (exact.paymentMethodId != null && methods.some((m) => m.id === exact.paymentMethodId)) setPaymentId(exact.paymentMethodId);
-        if (exact.categoryId != null) setCategoryId(exact.categoryId);
+        if (exact.categoryId != null) setCategoryId(exact.categoryId, validSub(exact.categoryId, exact.subcategoryId));
       }
     }
   };
@@ -703,6 +787,7 @@ export function ExpenseForm({
       <input type="hidden" name="amount" value={(negative ? "-" : "") + centsText(cents)} />
       {paymentId != null && <input type="hidden" name="paymentMethodId" value={paymentId} />}
       {categoryId != null && <input type="hidden" name="categoryId" value={categoryId} />}
+      {categoryId != null && subcategoryId != null && <input type="hidden" name="subcategoryId" value={subcategoryId} />}
       <input type="hidden" name="plan" value={activePlan} />
       {activePlan === "parcelado" && <input type="hidden" name="installments" value={installments} />}
 
@@ -735,7 +820,11 @@ export function ExpenseForm({
                   onClick={() => applySuggestion(s)}
                   className={chipClass}
                 >
-                  {s.categoryId != null && catById.get(s.categoryId) && <span aria-hidden>{catById.get(s.categoryId)!.emoji}</span>}
+                  {s.categoryId != null && catById.get(s.categoryId) && (
+                    <span aria-hidden>
+                      {catById.get(s.categoryId)!.subs?.find((x) => x.id === s.subcategoryId)?.emoji || catById.get(s.categoryId)!.emoji}
+                    </span>
+                  )}
                   {s.name}
                 </button>
               ))}
@@ -749,6 +838,11 @@ export function ExpenseForm({
           onChange={(id) => {
             setTouchedCategory(true);
             setCategoryId(id);
+          }}
+          sub={subcategoryId}
+          onSubChange={(id) => {
+            setTouchedCategory(true);
+            setSubcategoryId(id);
           }}
         />
 

@@ -211,24 +211,24 @@ export default async function Painel({
         {!anyData && (
           <Panel className="mt-2 mb-3 p-5 lg:mb-5">
             <h2 className="display text-[20px] font-bold">
-              Traga sua planilha para cá
+              Comece pelo primeiro gasto
             </h2>
             <p className="mt-1.5 text-[15px] text-ink-2">
-              Importe os meses de 2026 da planilha do Google e continue lançando
-              por aqui.
+              Lance o que você gastou hoje. Se quiser, antes ajuste suas
+              formas de pagamento e categorias em Configurações.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
-                href="/ajustes#importar"
+                href="/novo"
                 className="rounded-full bg-ink px-4 py-2.5 text-[14px] font-semibold text-white"
               >
-                Importar planilha
+                Lançar um gasto
               </Link>
               <Link
-                href="/novo"
+                href="/configuracoes"
                 className="rounded-full bg-paper px-4 py-2.5 text-[14px] font-semibold"
               >
-                Lançar um gasto
+                Configurações
               </Link>
             </div>
           </Panel>

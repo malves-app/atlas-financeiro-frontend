@@ -7,6 +7,8 @@ import {
   listCategoriesByUse,
   listGoals,
   listPaymentMethods,
+  listSubcategories,
+  withSubcategories,
 } from "./data";
 import { currentMonth, shiftMonth, todayISO } from "./format";
 import { goalHints, goalsFor } from "./goals";
@@ -15,9 +17,10 @@ import type { QuickAddData } from "@/components/QuickAdd";
 /** Tudo o que o lançamento rápido precisa (para a janela e para a página /novo). */
 export async function loadQuickAddData(): Promise<QuickAddData> {
   const methodsP = listPaymentMethods();
-  const [methods, categories, suggestions, incomeSuggestions, goals, names] = await Promise.all([
+  const [methods, categories, subs, suggestions, incomeSuggestions, goals, names] = await Promise.all([
     methodsP,
     methodsP.then(() => listCategoriesByUse()),
+    methodsP.then(() => listSubcategories()),
     getSuggestions(),
     getIncomeSuggestions(),
     listGoals(),
@@ -32,9 +35,9 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
     hints = goalHints(goals, await getMonthTotals(months[0], months[1]), months, names);
   }
   return {
-    categories: categories.map(({ id, name, emoji }) => ({ id, name, emoji })),
-    suggestions: suggestions.map(({ name, categoryId, paymentMethodId }) => ({ name, categoryId, paymentMethodId })),
-    methods: methods.map(({ id, name, color, isCredit, closingDay }) => ({ id, name, color, isCredit, closingDay })),
+    categories: withSubcategories(categories, subs),
+    suggestions: suggestions.map(({ name, categoryId, subcategoryId, paymentMethodId }) => ({ name, categoryId, subcategoryId, paymentMethodId })),
+    methods: methods.map(({ id, name, color, isCredit, closingDay, icon, bank }) => ({ id, name, color, isCredit, closingDay, icon, bank })),
     incomeSuggestions,
     today: todayISO(),
     goalHints: hints,

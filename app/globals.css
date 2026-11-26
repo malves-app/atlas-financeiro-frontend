@@ -375,3 +375,23 @@ a[data-nav-pending] {
     animation: none !important;
   }
 }
+
+/* Bloco que aparece no lugar (subcategorias abaixo da categoria escolhida) */
+@keyframes fm-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fm-pop {
+  animation: fm-pop 0.22s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fm-pop {
+    animation: none;
+  }
+}

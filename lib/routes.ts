@@ -17,7 +17,14 @@ export type RouteKey =
   | "investimento-novo"
   | "investimento"
   | "investimento-editar"
-  | "ajustes"
+  | "configuracoes"
+  | "config-pagamentos"
+  | "config-pagamento-nova"
+  | "config-pagamento"
+  | "config-categorias"
+  | "config-categoria-nova"
+  | "config-categoria"
+  | "config-conta"
   | "novo";
 
 const ROUTES: [RegExp, RouteKey][] = [
@@ -36,7 +43,14 @@ const ROUTES: [RegExp, RouteKey][] = [
   [/^\/investimentos\/novo\/?$/, "investimento-novo"],
   [/^\/investimentos\/\d+\/?$/, "investimento"],
   [/^\/investimentos\/\d+\/editar\/?$/, "investimento-editar"],
-  [/^\/ajustes\/?$/, "ajustes"],
+  [/^\/configuracoes\/?$/, "configuracoes"],
+  [/^\/configuracoes\/pagamentos\/?$/, "config-pagamentos"],
+  [/^\/configuracoes\/pagamentos\/nova\/?$/, "config-pagamento-nova"],
+  [/^\/configuracoes\/pagamentos\/\d+\/?$/, "config-pagamento"],
+  [/^\/configuracoes\/categorias\/?$/, "config-categorias"],
+  [/^\/configuracoes\/categorias\/nova\/?$/, "config-categoria-nova"],
+  [/^\/configuracoes\/categorias\/\d+\/?$/, "config-categoria"],
+  [/^\/configuracoes\/conta\/?$/, "config-conta"],
   [/^\/novo\/?$/, "novo"],
 ];
 

@@ -1,12 +1,22 @@
-import { getEntry, getIncome, getIncomeSuggestions, getSuggestions, listCategories, listPaymentMethods } from "./data";
+import {
+  getEntry,
+  getIncome,
+  getIncomeSuggestions,
+  getSuggestions,
+  listCategories,
+  listPaymentMethods,
+  listSubcategories,
+  withSubcategories,
+} from "./data";
 import { todayISO } from "./format";
 import type { EntryEditorData, IncomeEditorData } from "@/components/EditEntry";
 
 /** Dados para editar um gasto (janela e página). null se não existir mais. */
 export async function loadEntryEditor(id: number): Promise<EntryEditorData | null> {
-  const [entry, categories, suggestions, methods] = await Promise.all([
+  const [entry, categories, subs, suggestions, methods] = await Promise.all([
     getEntry(id),
     listCategories(),
+    listSubcategories(),
     getSuggestions(),
     listPaymentMethods(),
   ]);
@@ -14,9 +24,9 @@ export async function loadEntryEditor(id: number): Promise<EntryEditorData | nul
   return {
     entry,
     recurringId: entry.recurringId,
-    categories: categories.map(({ id, name, emoji }) => ({ id, name, emoji })),
-    suggestions: suggestions.map(({ name, categoryId, paymentMethodId }) => ({ name, categoryId, paymentMethodId })),
-    methods: methods.map(({ id, name, color, isCredit, closingDay }) => ({ id, name, color, isCredit, closingDay })),
+    categories: withSubcategories(categories, subs),
+    suggestions: suggestions.map(({ name, categoryId, subcategoryId, paymentMethodId }) => ({ name, categoryId, subcategoryId, paymentMethodId })),
+    methods: methods.map(({ id, name, color, isCredit, closingDay, icon, bank }) => ({ id, name, color, isCredit, closingDay, icon, bank })),
     today: todayISO(),
   };
 }

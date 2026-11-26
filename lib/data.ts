@@ -3,6 +3,8 @@ import { currentMonth, dateInMonth, monthDiff, nextPaymentColor, PAYMENT_COLORS,
 import { must } from "./must";
 import { isRealized } from "./realized";
 import { totalsFromRows, type Goal, type GoalKind, type GoalPeriod, type MonthTotals } from "./goals";
+import { bankById, guessBank, isBankId, isPaymentType, methodColor, type PaymentType } from "./payment-icons";
+import { DEFAULT_CATEGORIES, guessCategoryIcon } from "./category-icons";
 
 // Toda leitura e escrita passa pelo Supabase com a sessão de quem está logado.
 // As regras de segurança (RLS) do banco garantem que cada usuário só acessa os próprios dados.
@@ -17,6 +19,10 @@ export interface PaymentMethod {
   closingDay: number | null;
   color: string;
   sort: number;
+  /** Tipo (só o desenho): conta, pix, crédito... */
+  icon: PaymentType;
+  /** Banco (selo com a cor do banco), opcional. */
+  bank: string | null;
 }
 
 export interface Category {
@@ -24,6 +30,16 @@ export interface Category {
   name: string;
   emoji: string;
   budgetCents: number | null;
+  sort: number;
+}
+
+/** Subcategoria: dentro de uma categoria (Alimentação → Supermercado, Restaurante...). */
+export interface Subcategory {
+  id: number;
+  categoryId: number;
+  name: string;
+  /** Ícone próprio; null = usa o da categoria. */
+  emoji: string | null;
   sort: number;
 }
 
@@ -36,6 +52,7 @@ export interface Entry {
   date: string | null;
   paymentMethodId: number | null;
   categoryId: number | null;
+  subcategoryId: number | null;
   paid: boolean | null;
   installmentNo: number | null;
   installmentTotal: number | null;
@@ -58,6 +75,7 @@ export interface Recurring {
   day: number | null;
   paymentMethodId: number | null;
   categoryId: number | null;
+  subcategoryId: number | null;
   installments: number | null;
   startMonth: string;
   endMonth: string | null;
@@ -86,6 +104,7 @@ const toEntry = (r: R): Entry => ({
   date: (r.date as string) ?? null,
   paymentMethodId: num(r.payment_method_id),
   categoryId: num(r.category_id),
+  subcategoryId: num(r.subcategory_id),
   paid: r.paid == null ? null : Boolean(r.paid),
   installmentNo: num(r.installment_no),
   installmentTotal: num(r.installment_total),
@@ -108,6 +127,7 @@ const toRecurring = (r: R): Recurring => ({
   day: num(r.day),
   paymentMethodId: num(r.payment_method_id),
   categoryId: num(r.category_id),
+  subcategoryId: num(r.subcategory_id),
   installments: num(r.installments),
   startMonth: String(r.start_month),
   endMonth: (r.end_month as string) ?? null,
@@ -126,28 +146,16 @@ const toMethod = (r: R): PaymentMethod => ({
   name: String(r.name),
   isCredit: Boolean(r.is_credit),
   closingDay: num(r.closing_day),
-  color: String(r.color),
+  // Com banco, a cor é a do banco (as que tinham banco antes desta regra também)
+  color: methodColor(isBankId(r.bank) ? r.bank : null, String(r.color)),
   sort: Number(r.sort),
+  icon: isPaymentType(r.icon) ? r.icon : r.is_credit ? "credito" : "conta",
+  bank: isBankId(r.bank) ? r.bank : null,
 });
 
 /* ---------- formas de pagamento ---------- */
 
-export const DEFAULT_CATEGORIES: [string, string][] = [
-  ["Supermercado", "🛒"],
-  ["Restaurante", "🍽️"],
-  ["Apartamento", "🏠"],
-  ["Contas", "🧾"],
-  ["Saúde", "🩺"],
-  ["Carro", "🚗"],
-  ["Assinaturas", "📺"],
-  ["Farmácia", "💊"],
-  ["Uber", "🚕"],
-  ["Viagem", "✈️"],
-  ["Lazer", "🎬"],
-  ["Roupa", "👕"],
-  ["Casa", "🛠️"],
-  ["Presentes", "🎁"],
-];
+export { DEFAULT_CATEGORIES };
 
 /**
  * Conta nova começa com "Conta Corrente" e "Crédito" (como na planilha) e categorias básicas.
@@ -157,8 +165,8 @@ async function seedDefaults(sb: Supabase) {
   must(
     await sb.from("payment_methods").upsert(
       [
-        { name: "Conta Corrente", is_credit: false, closing_day: null, color: PAYMENT_COLORS[0], sort: 1 },
-        { name: "Crédito", is_credit: true, closing_day: 25, color: PAYMENT_COLORS[1], sort: 2 },
+        { name: "Conta Corrente", is_credit: false, closing_day: null, color: PAYMENT_COLORS[0], sort: 1, icon: "conta" },
+        { name: "Crédito", is_credit: true, closing_day: 25, color: PAYMENT_COLORS[1], sort: 2, icon: "credito" },
       ],
       { onConflict: "user_id,name", ignoreDuplicates: true },
     ),
@@ -168,11 +176,21 @@ async function seedDefaults(sb: Supabase) {
   if (!anyCategory.length) {
     must(
       await sb.from("categories").upsert(
-        DEFAULT_CATEGORIES.map(([name, emoji], i) => ({ name, emoji, sort: i + 1 })),
+        DEFAULT_CATEGORIES.map(({ name, emoji }, i) => ({ name, emoji, sort: i + 1 })),
         { onConflict: "user_id,name", ignoreDuplicates: true },
       ),
       "criar as categorias",
     );
+    const cats = must(await sb.from("categories").select("id, name"), "ler as categorias") as { id: number; name: string }[];
+    const idOf = new Map(cats.map((c) => [c.name, Number(c.id)]));
+    const subs = DEFAULT_CATEGORIES.flatMap((c) =>
+      idOf.has(c.name) ? c.subs.map((s, i) => ({ category_id: idOf.get(c.name)!, name: s.name, emoji: s.emoji, sort: i + 1 })) : [],
+    );
+    if (subs.length)
+      must(
+        await sb.from("subcategories").upsert(subs, { onConflict: "category_id,name", ignoreDuplicates: true }),
+        "criar as subcategorias",
+      );
   }
 }
 
@@ -187,38 +205,68 @@ export async function listPaymentMethods(): Promise<PaymentMethod[]> {
   return all.filter((r) => !r.archived).map(toMethod);
 }
 
+export async function getPaymentMethod(id: number): Promise<PaymentMethod | null> {
+  const sb = await getSupabase();
+  const row = must(
+    await sb.from("payment_methods").select("*").eq("id", id).eq("archived", false).maybeSingle(),
+    "ler a forma de pagamento",
+  ) as R | null;
+  return row ? toMethod(row) : null;
+}
+
 export interface PaymentMethodInput {
   id?: number;
   name: string;
   isCredit: boolean;
   closingDay: number | null;
+  /** Só vale sem banco (com banco, a cor é a do banco). Sem ela, a próxima cor livre da paleta. */
   color?: string;
+  /** Tipo (desenho). Sem ele: crédito ou conta. Crédito sempre fica com o tipo "credito". */
+  icon?: PaymentType;
+  /** Banco. undefined = adivinhar pelo nome (só ao criar); null = nenhum. */
+  bank?: string | null;
 }
 
 export async function upsertPaymentMethod(m: PaymentMethodInput) {
   const sb = await getSupabase();
-  const values = { name: m.name, is_credit: m.isCredit, closing_day: m.isCredit ? m.closingDay : null };
-  if (m.id) {
-    must(
-      await sb
-        .from("payment_methods")
-        .update({ ...values, ...(m.color ? { color: m.color } : {}) })
-        .eq("id", m.id),
-      "salvar a forma de pagamento",
-    );
-    return;
-  }
-  const all = must(await sb.from("payment_methods").select("color, sort, archived"), "ler as formas de pagamento") as {
+  const icon: PaymentType = m.isCredit ? "credito" : m.icon && m.icon !== "credito" ? m.icon : "conta";
+  const bank = m.bank === undefined ? (m.id ? undefined : guessBank(m.name)) : isBankId(m.bank) ? m.bank : null;
+  const values = {
+    name: m.name,
+    is_credit: m.isCredit,
+    closing_day: m.isCredit ? m.closingDay : null,
+    icon,
+    ...(bank !== undefined ? { bank } : {}),
+  };
+  const all = must(await sb.from("payment_methods").select("id, color, bank, sort, archived"), "ler as formas de pagamento") as {
+    id: number;
     color: string;
+    bank: string | null;
     sort: number;
     archived: boolean;
   }[];
+  const current = m.id ? all.find((x) => Number(x.id) === m.id) : undefined;
+  const finalBank = bank !== undefined ? bank : (current?.bank ?? null);
+  // Com banco: a cor do banco. Sem banco: a cor pedida, a que já tinha (se for da paleta) ou a próxima livre.
+  const freeColor = () =>
+    nextPaymentColor(all.filter((x) => !x.archived && Number(x.id) !== m.id).map((x) => methodColor(x.bank, x.color)));
+  const color =
+    bankById(finalBank)?.bg ??
+    (m.color && PAYMENT_COLORS.includes(m.color)
+      ? m.color
+      : current && PAYMENT_COLORS.includes(current.color)
+        ? current.color
+        : freeColor());
+  if (m.id) {
+    must(await sb.from("payment_methods").update({ ...values, color }).eq("id", m.id), "salvar a forma de pagamento");
+    return;
+  }
   must(
     await sb.from("payment_methods").upsert(
       {
         ...values,
         archived: false,
-        color: m.color ?? nextPaymentColor(all.filter((x) => !x.archived).map((x) => x.color)),
+        color,
         sort: Math.max(0, ...all.map((x) => x.sort)) + 1,
       },
       { onConflict: "user_id,name" },
@@ -261,24 +309,135 @@ export async function listCategoriesByUse(): Promise<Category[]> {
   return [...cats].sort((a, b) => (uses.get(b.id) ?? 0) - (uses.get(a.id) ?? 0) || a.sort - b.sort);
 }
 
-/** O valor previsto por mês virou meta da categoria (Metas); budgetCents só é gravado quando vem. */
-export async function upsertCategory(c: { id?: number; name: string; emoji: string; budgetCents?: number | null }) {
+/** Uma categoria ativa (para a tela de detalhes em Configurações). */
+export async function getCategory(id: number): Promise<Category | null> {
+  const sb = await getSupabase();
+  const row = must(
+    await sb.from("categories").select("*").eq("id", id).eq("archived", false).maybeSingle(),
+    "ler a categoria",
+  ) as R | null;
+  return row ? toCategory(row) : null;
+}
+
+/**
+ * O valor previsto por mês virou meta da categoria (Metas); budgetCents só é gravado quando vem.
+ * Devolve o id (na criação, o da categoria criada ou reativada).
+ */
+export async function upsertCategory(c: { id?: number; name: string; emoji: string; budgetCents?: number | null }): Promise<number> {
   const sb = await getSupabase();
   const budget = c.budgetCents !== undefined ? { budget_cents: c.budgetCents } : {};
   if (c.id) {
     must(await sb.from("categories").update({ name: c.name, emoji: c.emoji, ...budget }).eq("id", c.id), "salvar a categoria");
-    return;
+    return c.id;
   }
   const last = must(await sb.from("categories").select("sort").order("sort", { ascending: false }).limit(1), "ler as categorias") as {
     sort: number;
   }[];
-  must(
-    await sb.from("categories").upsert(
-      { name: c.name, emoji: c.emoji, ...budget, archived: false, sort: (last[0]?.sort ?? 0) + 1 },
-      { onConflict: "user_id,name" },
-    ),
+  const row = must(
+    await sb
+      .from("categories")
+      .upsert(
+        { name: c.name, emoji: c.emoji, ...budget, archived: false, sort: (last[0]?.sort ?? 0) + 1 },
+        { onConflict: "user_id,name" },
+      )
+      .select("id")
+      .single(),
     "criar a categoria",
+  ) as R;
+  return Number(row.id);
+}
+
+/* ---------- subcategorias ---------- */
+
+const toSubcategory = (r: R): Subcategory => ({
+  id: Number(r.id),
+  categoryId: Number(r.category_id),
+  name: String(r.name),
+  emoji: r.emoji == null || r.emoji === "" ? null : String(r.emoji),
+  sort: Number(r.sort),
+});
+
+/** Subcategorias ativas (de todas as categorias), na ordem de cada categoria. */
+export async function listSubcategories(): Promise<Subcategory[]> {
+  const sb = await getSupabase();
+  const rows = must(
+    await sb.from("subcategories").select("*").eq("archived", false).order("sort").order("name"),
+    "ler as subcategorias",
+  ) as R[];
+  return rows.map(toSubcategory);
+}
+
+/** Nome e ícone de todas as subcategorias, inclusive as removidas (para os lançamentos antigos). */
+export async function subcategoryLookup(): Promise<Map<number, { name: string; emoji: string | null }>> {
+  const sb = await getSupabase();
+  const rows = must(await sb.from("subcategories").select("id, name, emoji"), "ler as subcategorias") as R[];
+  return new Map(rows.map((r) => [Number(r.id), { name: String(r.name), emoji: r.emoji ? String(r.emoji) : null }]));
+}
+
+/**
+ * Cria (ou reativa, se já existiu com esse nome) uma subcategoria no fim da lista da categoria.
+ * Sem ícone escolhido (undefined), tenta um que combine com o nome ("Padaria" → 🥖).
+ */
+export async function createSubcategory(categoryId: number, name: string, emoji?: string | null) {
+  const sb = await getSupabase();
+  const last = must(
+    await sb.from("subcategories").select("sort").eq("category_id", categoryId).order("sort", { ascending: false }).limit(1),
+    "ler as subcategorias",
+  ) as { sort: number }[];
+  must(
+    await sb
+      .from("subcategories")
+      .upsert(
+        {
+          category_id: categoryId,
+          name,
+          emoji: emoji === undefined ? guessCategoryIcon(name) : emoji || null,
+          archived: false,
+          sort: (last[0]?.sort ?? 0) + 1,
+        },
+        { onConflict: "category_id,name" },
+      ),
+    "criar a subcategoria",
   );
+}
+
+/** Muda o nome e, se vier, o ícone (null = sem ícone próprio). */
+export async function renameSubcategory(id: number, name: string, emoji?: string | null) {
+  const sb = await getSupabase();
+  must(
+    await sb
+      .from("subcategories")
+      .update({ name, ...(emoji !== undefined ? { emoji: emoji || null } : {}) })
+      .eq("id", id),
+    "salvar a subcategoria",
+  );
+}
+
+/** Remove da lista (os lançamentos antigos continuam com ela). */
+export async function archiveSubcategory(id: number) {
+  const sb = await getSupabase();
+  must(await sb.from("subcategories").update({ archived: true }).eq("id", id), "remover a subcategoria");
+}
+
+/** Categorias com as subcategorias de cada uma (para os formulários de lançar). */
+export function withSubcategories(categories: Category[], subs: Subcategory[]) {
+  return categories.map(({ id, name, emoji }) => ({
+    id,
+    name,
+    emoji,
+    subs: subs.filter((s) => s.categoryId === id).map((s) => ({ id: s.id, name: s.name, emoji: s.emoji })),
+  }));
+}
+
+/** A subcategoria só vale se for da categoria escolhida (senão, fica sem). */
+export async function checkSubcategory(categoryId: number | null, subcategoryId: number | null): Promise<number | null> {
+  if (categoryId == null || subcategoryId == null) return null;
+  const sb = await getSupabase();
+  const row = must(
+    await sb.from("subcategories").select("category_id").eq("id", subcategoryId).maybeSingle(),
+    "ler a subcategoria",
+  ) as R | null;
+  return row && Number(row.category_id) === categoryId ? subcategoryId : null;
 }
 
 /** Nome e emoji de todas as categorias, inclusive as removidas (para metas e históricos). */
@@ -434,6 +593,7 @@ function entryFromRecurring(r: Recurring, month: string) {
     date: dateInMonth(month, r.day),
     payment_method_id: r.paymentMethodId,
     category_id: r.categoryId,
+    subcategory_id: r.categoryId != null ? r.subcategoryId : null,
     paid: r.kind === "fixo" ? false : null,
     installment_no: inst.no,
     installment_total: inst.total,
@@ -505,6 +665,7 @@ export interface RecurringInput {
   day: number | null;
   paymentMethodId: number | null;
   categoryId: number | null;
+  subcategoryId?: number | null;
   installments: number | null;
   startMonth: string;
 }
@@ -525,6 +686,7 @@ export async function createRecurring(input: RecurringInput, { backfill = false 
         day: input.day,
         payment_method_id: input.paymentMethodId,
         category_id: input.categoryId,
+        subcategory_id: input.categoryId != null ? (input.subcategoryId ?? null) : null,
         installments: input.installments,
         start_month: input.startMonth,
       })
@@ -555,6 +717,7 @@ export async function updateRecurring(id: number, input: Omit<RecurringInput, "s
         day: input.day,
         payment_method_id: input.paymentMethodId,
         category_id: input.categoryId,
+        subcategory_id: input.categoryId != null ? (input.subcategoryId ?? null) : null,
         installments: input.installments,
       })
       .eq("id", id),
@@ -577,6 +740,7 @@ export async function updateRecurring(id: number, input: Omit<RecurringInput, "s
             date: dateInMonth(e.month, input.day) ?? e.date,
             payment_method_id: input.paymentMethodId,
             category_id: input.categoryId,
+            subcategory_id: input.categoryId != null ? (input.subcategoryId ?? null) : null,
             installment_total: input.installments,
           })
           .eq("id", e.id),
@@ -612,6 +776,8 @@ export interface EntryInput {
   date: string | null;
   paymentMethodId: number | null;
   categoryId: number | null;
+  /** Precisa ser da categoria (veja checkSubcategory). */
+  subcategoryId?: number | null;
 }
 
 export async function createEntry(e: EntryInput) {
@@ -625,6 +791,7 @@ export async function createEntry(e: EntryInput) {
       date: e.date,
       payment_method_id: e.paymentMethodId,
       category_id: e.categoryId,
+      subcategory_id: e.categoryId != null ? (e.subcategoryId ?? null) : null,
     }),
     "salvar o gasto",
   );
@@ -642,6 +809,7 @@ export async function updateEntry(id: number, e: Omit<EntryInput, "kind">) {
         date: e.date,
         payment_method_id: e.paymentMethodId,
         category_id: e.categoryId,
+        subcategory_id: e.categoryId != null ? (e.subcategoryId ?? null) : null,
       })
       .eq("id", id),
     "salvar o lançamento",
@@ -697,6 +865,7 @@ export async function deleteIncome(id: number) {
 export interface Suggestion {
   name: string;
   categoryId: number | null;
+  subcategoryId: number | null;
   paymentMethodId: number | null;
   uses: number;
 }
@@ -707,12 +876,14 @@ export async function getSuggestions(): Promise<Suggestion[]> {
   const rows = must(await sb.rpc("fm_suggestions"), "ler as sugestões") as {
     name: string;
     category_id: number | null;
+    subcategory_id: number | null;
     payment_method_id: number | null;
     uses: number;
   }[];
   return rows.map((r) => ({
     name: r.name,
     categoryId: r.category_id == null ? null : Number(r.category_id),
+    subcategoryId: r.subcategory_id == null ? null : Number(r.subcategory_id),
     paymentMethodId: r.payment_method_id == null ? null : Number(r.payment_method_id),
     uses: Number(r.uses),
   }));

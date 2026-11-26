@@ -2,6 +2,7 @@ import type { Supabase } from "../supabase/server";
 import { must } from "../must";
 import { MONTH_NAMES, nextPaymentColor, shiftMonth } from "../format";
 import { checkMonth, looksLikeCredit, parseMonthSheet, type ParsedMonth } from "./parse";
+import { bankById, guessBank, guessPaymentType } from "../payment-icons";
 
 // Planilha do Google com uma aba por mês. O link precisa estar como "qualquer pessoa com o link pode ver".
 export const DEFAULT_YEAR = 2026;
@@ -152,10 +153,20 @@ export async function loadIntoDatabase(sb: Supabase, parsed: ParsedMonth[]): Pro
   const newMethods = payNames
     .filter((n) => !existingMethods.some((m) => m.name.toLowerCase() === n.toLowerCase()))
     .map((name) => {
-      const color = nextPaymentColor(usedColors);
+      // Com banco reconhecido pelo nome, a cor é a do banco; sem, a próxima livre da paleta
+      const bank = guessBank(name);
+      const color = bankById(bank)?.bg ?? nextPaymentColor(usedColors);
       usedColors.push(color);
       const credit = looksLikeCredit(name);
-      return { name, is_credit: credit, closing_day: credit ? 25 : null, color, sort: ++nextSort };
+      return {
+        name,
+        is_credit: credit,
+        closing_day: credit ? 25 : null,
+        color,
+        sort: ++nextSort,
+        icon: guessPaymentType(name, credit),
+        bank,
+      };
     });
   if (newMethods.length) must(await sb.from("payment_methods").insert(newMethods), "criar as formas de pagamento");
   const reactivate = existingMethods.filter((m) => m.archived && payNames.some((n) => n.toLowerCase() === m.name.toLowerCase()));

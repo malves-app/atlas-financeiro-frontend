@@ -12,7 +12,7 @@ const GEAR = [
   "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
 ];
 
-/** Painel: no celular, marca + compartilhar + ajustes; no computador, título + compartilhar + mês. */
+/** Painel: no celular, marca + compartilhar + configurações; no computador, título + compartilhar + mês. */
 export function PainelHeader({
   month,
   shareIcon,
@@ -46,8 +46,8 @@ export function PainelHeader({
               <InvestGlyph className="size-[22px]" />
             </Link>
             <Link
-              href="/ajustes"
-              aria-label="Ajustes"
+              href="/configuracoes"
+              aria-label="Configurações"
               className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/70 lg:hidden"
             >
               <svg

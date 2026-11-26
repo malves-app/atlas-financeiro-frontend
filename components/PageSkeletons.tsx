@@ -8,6 +8,7 @@ import { Bone, SkeletonScreen, TextBone } from "./Skeleton";
 import { FixosHeader, InvestimentosHeader, InvestimentoTopBar, LancamentosHeader, MetasHeader, PainelHeader, ShareGlyph } from "./PageHeaders";
 import { usePendingNav } from "./NavState";
 import { Panel } from "./ui";
+import { SettingsTopBar } from "./SettingsVisuals";
 
 /*
  * Skeleton de cada tela, no mesmo formato da tela pronta: mesmos cartões, espaçamentos e
@@ -896,74 +897,138 @@ export function InvestimentoFormSkeleton({ isNew = false, mode = "page" }: { isN
   );
 }
 
-/* ------------------------------- Ajustes ------------------------------- */
+/* ---------------------------- Configurações ---------------------------- */
 
-export function AjustesSkeleton() {
+function SettingsCardBone({ className = "", round = false, count = 5 }: { className?: string; round?: boolean; count?: number }) {
+  return (
+    <div className={`mx-3 rounded-[22px] bg-surface p-4 lg:mx-0 lg:p-5 ${className}`}>
+      <div className="flex items-center gap-3">
+        <Bone className="block size-11 shrink-0 rounded-2xl" />
+        <span className="flex-1">
+          <TextBone size={16} w="w-40" />
+          <TextBone size={13.5} w="w-48 max-w-full" />
+        </span>
+      </div>
+      <div className="mt-4 flex min-h-10 -space-x-2">
+        {Array.from({ length: count }, (_, i) => (
+          <Bone key={i} className={`block size-10 ring-[3px] ring-surface ${round ? "rounded-full" : "rounded-xl"}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ConfiguracoesSkeleton() {
   return (
     <SkeletonScreen>
-      <header className="px-4 pt-[max(env(safe-area-inset-top),10px)] pb-2 lg:px-0 lg:pt-2 lg:pb-4">
-        <h1 className="display text-[22px] font-bold tracking-tight lg:text-[28px]">Ajustes</h1>
+      <header className="px-4 pt-[max(env(safe-area-inset-top),10px)] pb-3 lg:px-0 lg:pt-2 lg:pb-5">
+        <h1 className="display text-[22px] font-bold tracking-tight lg:text-[28px]">Configurações</h1>
       </header>
-      <div className="flex flex-col gap-3 lg:gap-4">
-        <Panel>
-          <SectionTitleBone w="w-40" />
-          <div className="-mt-1 px-4 pb-2">
-            <TextBone size={14} w="w-full" />
-            <TextBone size={14} w="w-3/5" />
-          </div>
-          <ul className="pb-1">
-            {["w-28", "w-16", "w-24"].map((w) => (
-              <li key={w} className="flex items-center gap-3 px-4 py-2.5">
-                <Bone className="block size-3 shrink-0 rounded-full" />
-                <span className="flex-1">
-                  <TextBone w={w} />
-                </span>
-                <TextBone size={13} w="w-28" />
-              </li>
-            ))}
-            <li className="border-t border-line px-4 py-3 text-[15px] font-semibold text-brand" aria-hidden>
-              Nova forma de pagamento
-            </li>
-          </ul>
-        </Panel>
+      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+        <SettingsCardBone />
+        <SettingsCardBone round count={6} />
+        <SettingsCardBone className="lg:col-span-2" round count={1} />
+      </div>
+    </SkeletonScreen>
+  );
+}
 
-        <Panel>
-          <SectionTitleBone w="w-56" />
-          <div className="-mt-1 px-4 pb-3">
-            <TextBone size={14} w="w-full" />
-            <TextBone size={14} w="w-4/5" />
+/** Lista de formas de pagamento ou de categorias. */
+export function ConfigListSkeleton({ kind }: { kind: "pagamentos" | "categorias" }) {
+  const pay = kind === "pagamentos";
+  const rows = (n: number) => (
+    <ul className="divide-y divide-line/60 py-1">
+      {Array.from({ length: n }, (_, i) => (
+        <li key={i} className="flex items-center gap-3.5 px-4 py-3">
+          <Bone className={`block size-10 shrink-0 ${pay ? "rounded-xl" : "size-11 rounded-full"}`} />
+          <span className="flex-1">
+            <TextBone size={15.5} w={NAMES[i % NAMES.length]} />
+            {pay ? <TextBone size={13} w={SUBS[i % SUBS.length]} /> : <ChipsBone widths={["w-20", "w-24", "w-16"]} height="h-[20px]" />}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <SkeletonScreen className="lg:mx-auto lg:max-w-2xl">
+      <SettingsTopBar title={pay ? "Formas de pagamento" : "Categorias"} back="/configuracoes" />
+      <div className="mx-5 -mt-1 mb-4 lg:mx-1">
+        <TextBone size={14} w="w-full" />
+        <TextBone size={14} w="w-2/3" />
+      </div>
+      {pay ? (
+        <div className="space-y-4">
+          <div>
+            <TextBone size={13} w="w-36" className="mx-5 mb-2 lg:mx-1" />
+            <Panel>{rows(2)}</Panel>
           </div>
-          <div className="space-y-3 px-4 pb-4">
+          <div>
+            <TextBone size={13} w="w-32" className="mx-5 mb-2 lg:mx-1" />
+            <Panel>{rows(1)}</Panel>
+          </div>
+        </div>
+      ) : (
+        <Panel>{rows(7)}</Panel>
+      )}
+    </SkeletonScreen>
+  );
+}
+
+/** Formulário de forma de pagamento ou de categoria (nova ou detalhes). */
+export function ConfigFormSkeleton({ kind, isNew }: { kind: "pagamento" | "categoria"; isNew?: boolean }) {
+  const pay = kind === "pagamento";
+  return (
+    <SkeletonScreen className="lg:mx-auto lg:max-w-2xl">
+      <SettingsTopBar
+        title={isNew ? (pay ? "Nova forma de pagamento" : "Nova categoria") : pay ? "Forma de pagamento" : "Categoria"}
+        back={pay ? "/configuracoes/pagamentos" : "/configuracoes/categorias"}
+      />
+      <div className="space-y-6 px-3 lg:px-0">
+        <div className="flex items-center gap-4 rounded-[22px] bg-surface p-4 lg:p-5">
+          <Bone className={`block size-16 shrink-0 ${pay ? "rounded-[20px]" : "rounded-full"}`} />
+          <span className="flex-1">
+            <TextBone size={18} w="w-44" />
+            <TextBone size={13.5} w="w-56 max-w-full" />
+          </span>
+        </div>
+        {(pay || isNew) && (
+          <>
+            <InputBone label="w-16" />
             <div>
-              <TextBone size={13} w="w-64 max-w-full" className="mb-1" />
-              <span className="block h-[43px] rounded-xl border border-line bg-surface" />
+              <TextBone size={13} w="w-12" className="mb-2" />
+              <div className={`grid gap-2 ${pay ? "grid-cols-3 sm:grid-cols-5" : "grid-cols-7 sm:grid-cols-10"}`}>
+                {Array.from({ length: pay ? 10 : 20 }, (_, i) => (
+                  <Bone key={i} className={`block rounded-2xl ${pay ? "h-[74px]" : "aspect-square"}`} />
+                ))}
+              </div>
             </div>
-            <TextBone size={14} w="w-72 max-w-full" />
-            <Bone className="block h-[46px] w-full rounded-full lg:w-52" />
-          </div>
-        </Panel>
-
-        <Panel>
-          <SectionTitleBone w="w-24" />
-          <div className="-mt-1 px-4 pb-2">
-            <TextBone size={14} w="w-full" />
-            <TextBone size={14} w="w-1/2" />
-          </div>
-          <ul className="pb-1">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                <Bone className="block size-9 shrink-0 rounded-full" />
-                <span className="flex-1">
-                  <TextBone w={NAMES[i]} />
-                </span>
-                <TextBone size={13} w="w-24" />
-              </li>
+          </>
+        )}
+        {!pay && !isNew && (
+          <div className="rounded-[20px] bg-surface pb-3">
+            <SectionTitleBone w="w-28" />
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 py-2.5 pr-2 pl-4">
+                <Bone className="block size-1.5 rounded-full" />
+                <TextBone w={NAMES[i]} />
+              </div>
             ))}
-            <li className="border-t border-line px-4 py-3 text-[15px] font-semibold text-brand" aria-hidden>
-              Nova categoria
-            </li>
-          </ul>
-        </Panel>
+          </div>
+        )}
+      </div>
+    </SkeletonScreen>
+  );
+}
+
+export function ConfigContaSkeleton() {
+  return (
+    <SkeletonScreen className="lg:mx-auto lg:max-w-2xl">
+      <SettingsTopBar title="Conta" back="/configuracoes" />
+      <div className="mx-3 flex flex-col items-center rounded-[22px] bg-surface px-5 pt-7 pb-6 lg:mx-0">
+        <Bone className="block size-20 rounded-full" />
+        <TextBone size={12.5} w="w-14" className="mt-4" />
+        <TextBone size={17} w="w-56" />
+        <TextBone size={13.5} w="w-64 max-w-full" className="mt-1" />
       </div>
     </SkeletonScreen>
   );
@@ -1266,8 +1331,22 @@ export function RouteSkeleton({ route, url }: { route: RouteKey; url?: URL }) {
       return <InvestimentoSkeleton />;
     case "investimento-editar":
       return <InvestimentoFormSkeleton />;
-    case "ajustes":
-      return <AjustesSkeleton />;
+    case "configuracoes":
+      return <ConfiguracoesSkeleton />;
+    case "config-pagamentos":
+      return <ConfigListSkeleton kind="pagamentos" />;
+    case "config-pagamento-nova":
+      return <ConfigFormSkeleton kind="pagamento" isNew />;
+    case "config-pagamento":
+      return <ConfigFormSkeleton kind="pagamento" />;
+    case "config-categorias":
+      return <ConfigListSkeleton kind="categorias" />;
+    case "config-categoria-nova":
+      return <ConfigFormSkeleton kind="categoria" isNew />;
+    case "config-categoria":
+      return <ConfigFormSkeleton kind="categoria" />;
+    case "config-conta":
+      return <ConfigContaSkeleton />;
     case "novo":
       return <QuickAddSkeleton mode="page" url={url} />;
     case "lancamento":

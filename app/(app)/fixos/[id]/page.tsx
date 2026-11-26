@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRecurring, listCategories, listPaymentMethods } from "@/lib/data";
+import { getRecurring, listCategories, listPaymentMethods, listSubcategories, withSubcategories } from "@/lib/data";
 import { monthLabel, monthPhrase, shiftMonth } from "@/lib/format";
 import { readParams, type SearchParams } from "@/lib/page";
 import { RecurringForm } from "@/components/RecurringForm";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function EditarFixo({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   const { id } = await params;
   const { month } = await readParams(searchParams);
-  const [recurring, categories, methods] = await Promise.all([getRecurring(Number(id)), listCategories(), listPaymentMethods()]);
+  const [recurring, categories, methods, subs] = await Promise.all([getRecurring(Number(id)), listCategories(), listPaymentMethods(), listSubcategories()]);
   if (!recurring) notFound();
   const endOptions = Array.from({ length: 14 }, (_, i) => shiftMonth(month, i - 1));
 
@@ -27,7 +27,7 @@ export default async function EditarFixo({ params, searchParams }: { params: Pro
         <h1 className="display text-[20px] font-bold">{recurring.kind === "cartao" ? "Fixo do cartão" : "Conta fixa"}</h1>
       </header>
 
-      <RecurringForm categories={categories.map(({ id, name, emoji }) => ({ id, name, emoji }))} methods={methods} month={month} recurring={recurring} />
+      <RecurringForm categories={withSubcategories(categories, subs)} methods={methods} month={month} recurring={recurring} />
 
       <form action={endRecurringAction} className="mx-5 mt-8 mb-6 rounded-2xl bg-surface p-4">
         <input type="hidden" name="id" value={recurring.id} />

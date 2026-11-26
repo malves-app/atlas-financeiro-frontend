@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveRecurring } from "@/app/actions";
 import { centsToInput } from "@/lib/format";
-import { PaymentPicker, defaultMethodId, type CategoryOption, type PaymentMethodOption } from "./EntryForm";
+import { PaymentPicker, SubcategoryChips, defaultMethodId, type CategoryOption, type PaymentMethodOption } from "./EntryForm";
 import { LogoLoader } from "./LogoLoader";
 
 export function RecurringForm({
@@ -23,6 +23,7 @@ export function RecurringForm({
     day: number | null;
     paymentMethodId: number | null;
     categoryId: number | null;
+    subcategoryId?: number | null;
     installments: number | null;
   };
 }) {
@@ -35,6 +36,8 @@ export function RecurringForm({
     k === "cartao" ? defaultMethodId(methodsFor(k)) : (methods.find((m) => !m.isCredit) ?? methods[0])?.id ?? null;
   const [paymentId, setPaymentId] = useState<number | null>(recurring ? recurring.paymentMethodId : firstFor("fixo"));
   const [categoryId, setCategoryId] = useState<number | null>(recurring?.categoryId ?? null);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(recurring?.subcategoryId ?? null);
+  const selectedCategory = categories.find((c) => c.id === categoryId);
   const [amount, setAmount] = useState(recurring ? centsToInput(recurring.amountCents) : "");
 
   const input = "w-full rounded-2xl border border-line bg-surface px-4 py-3 outline-none focus:border-brand";
@@ -49,6 +52,7 @@ export function RecurringForm({
       <input type="hidden" name="mode" value={mode} />
       {paymentId != null && <input type="hidden" name="paymentMethodId" value={paymentId} />}
       {categoryId != null && <input type="hidden" name="categoryId" value={categoryId} />}
+      {categoryId != null && subcategoryId != null && <input type="hidden" name="subcategoryId" value={subcategoryId} />}
 
       {!recurring && (
         <div>
@@ -160,7 +164,10 @@ export function RecurringForm({
                 key={c.id}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => setCategoryId(selected ? null : c.id)}
+                onClick={() => {
+                  setCategoryId(selected ? null : c.id);
+                  setSubcategoryId(null);
+                }}
                 className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-[14px] font-medium ${
                   selected ? "bg-ink text-white" : "border border-line bg-surface hover:border-ink-3"
                 }`}
@@ -171,6 +178,7 @@ export function RecurringForm({
             );
           })}
         </div>
+        {selectedCategory && <SubcategoryChips category={selectedCategory} value={subcategoryId} onChange={setSubcategoryId} />}
       </fieldset>
 
       {state?.error && (

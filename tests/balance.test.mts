@@ -6,8 +6,8 @@ const { balanceView } = await import("../lib/balance");
 
 const nbsp = (s: string) => s.replace(/ /g, " ");
 const methods = [
-  { id: 1, name: "Conta Corrente", isCredit: false, closingDay: null, color: "#2a78d6", sort: 0 },
-  { id: 2, name: "Crédito", isCredit: true, closingDay: 25, color: "#eb6834", sort: 1 },
+  { id: 1, name: "Conta Corrente", isCredit: false, closingDay: null, color: "#2a78d6", sort: 0, icon: "conta" as const, bank: null },
+  { id: 2, name: "Crédito", isCredit: true, closingDay: 25, color: "#eb6834", sort: 1, icon: "credito" as const, bank: null },
 ];
 const up = (kind: "fixo" | "cartao" | "avulso", onCard: boolean) =>
   ({ id: 0, month: "2026-11", kind, name: "x", amountCents: 1, date: null, paymentMethodId: onCard ? 2 : 1, categoryId: null, paid: false, installmentNo: null, installmentTotal: null, onCard }) as never;
