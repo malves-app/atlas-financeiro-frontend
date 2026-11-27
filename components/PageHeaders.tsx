@@ -32,6 +32,13 @@ export function PainelHeader({
           <div className="-mr-1.5 flex items-center">
             {shareIcon}
             <Link
+              href="/conferir"
+              aria-label="Conferir com o banco"
+              className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/70 lg:hidden"
+            >
+              <ConferirGlyph className="size-[22px]" />
+            </Link>
+            <Link
               href={`/metas?m=${month}`}
               aria-label="Metas"
               className="grid size-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-white/70 lg:hidden"
@@ -162,6 +169,17 @@ export function MetasHeader({ month }: { month: string }) {
       </header>
       <BackToCurrentMonth month={month} basePath="/metas" />
     </>
+  );
+}
+
+/** Conferir com o banco (documento com check): o mesmo ícone do menu. */
+export const CONFERIR_ICON = "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 14.5l2 2 4-4.5";
+
+export function ConferirGlyph({ className = "size-5", width = 1.8 }: { className?: string; width?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={CONFERIR_ICON} />
+    </svg>
   );
 }
 

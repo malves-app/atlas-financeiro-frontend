@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx tests/schema.test.mts && tsx tests/realized.test.mts && tsx tests/balance.test.mts && tsx tests/import.test.mts && tsx tests/stats.test.mts && tsx tests/goals.test.mts && tsx tests/investments.test.mts && tsx tests/settings.test.mts && tsx tests/export.test.mts",
+    "test": "tsx tests/schema.test.mts && tsx tests/realized.test.mts && tsx tests/balance.test.mts && tsx tests/import.test.mts && tsx tests/stats.test.mts && tsx tests/goals.test.mts && tsx tests/investments.test.mts && tsx tests/settings.test.mts && tsx tests/export.test.mts && tsx tests/statements.test.mts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -15,6 +15,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "next": "16.4.6",
+    "pdfjs-dist": "5.4.394",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

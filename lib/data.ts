@@ -674,7 +674,7 @@ export interface RecurringInput {
  * Cria um fixo e já o coloca nos meses que já foram gerados a partir de hoje.
  * Com backfill, começa no próprio mês inicial (compra parcelada lançada depois, numa fatura passada).
  */
-export async function createRecurring(input: RecurringInput, { backfill = false }: { backfill?: boolean } = {}) {
+export async function createRecurring(input: RecurringInput, { backfill = false }: { backfill?: boolean } = {}): Promise<number> {
   const sb = await getSupabase();
   const row = must(
     await sb
@@ -703,6 +703,19 @@ export async function createRecurring(input: RecurringInput, { backfill = false 
     [toRecurring(row)],
     months.map((m) => m.month),
   );
+  return Number(row.id);
+}
+
+/**
+ * Coloca um fixo no mês `from` e nos meses já gerados depois dele (usado ao lançar, pela conferência da fatura,
+ * uma parcela de uma compra antiga: só desta parcela em diante, sem mexer nos meses anteriores).
+ */
+export async function fillRecurringFrom(id: number, from: string) {
+  const rec = await getRecurring(id);
+  if (!rec) return;
+  const sb = await getSupabase();
+  const months = must(await sb.from("generated_months").select("month").gte("month", from), "ler os meses") as { month: string }[];
+  await fillMonths(sb, [rec], [...new Set([from, ...months.map((m) => m.month)])]);
 }
 
 /** Atualiza o modelo e os lançamentos ainda não pagos a partir de um mês. */

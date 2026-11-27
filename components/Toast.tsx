@@ -38,6 +38,11 @@ export function showToast(key: string) {
   window.dispatchEvent(new CustomEvent("fm:toast", { detail: key }));
 }
 
+/** Mostra um aviso com um texto pronto (ex.: "12 correções feitas"). */
+export function showToastText(text: string) {
+  window.dispatchEvent(new CustomEvent("fm:toast", { detail: `text:${text}` }));
+}
+
 export function Toast() {
   const sp = useSearchParams();
   const router = useRouter();
@@ -60,7 +65,7 @@ export function Toast() {
     let t: ReturnType<typeof setTimeout> | undefined;
     const onToast = (e: Event) => {
       const key = (e as CustomEvent<string>).detail;
-      setShown(MESSAGES[key] ?? "Salvo");
+      setShown(key.startsWith("text:") ? key.slice(5) : (MESSAGES[key] ?? "Salvo"));
       clearTimeout(t);
       t = setTimeout(() => setShown(null), 2600);
     };

@@ -1302,6 +1302,36 @@ export function IncomeEditorSkeleton({ mode }: { mode: FormMode }) {
 
 /* ------------------------------------------------------------------------ */
 
+/** Conferir com o banco: cabeçalho, abas, envio (banco, forma, arquivo) e o resultado. */
+export function ConferirSkeleton({ url }: { url?: URL }) {
+  const extrato = useUrlParams(url).get("aba") === "extrato";
+  return (
+    <SkeletonScreen className="lg:mx-auto lg:max-w-3xl">
+      <div className="px-4 pt-[max(env(safe-area-inset-top),10px)] pb-3 lg:px-0 lg:pt-2 lg:pb-5">
+        <h1 className="display text-[22px] font-bold tracking-tight lg:text-[28px]">Conferir com o banco</h1>
+        <TextBone size={13} w="w-72" />
+      </div>
+      <div className="mx-4 mb-3 grid grid-cols-2 gap-1 rounded-full bg-surface p-1 lg:mx-0 lg:max-w-sm">
+        <span className={`rounded-full py-2 text-center text-[15px] font-semibold ${extrato ? "text-ink-2" : "bg-ink text-white"}`}>Fatura do cartão</span>
+        <span className={`rounded-full py-2 text-center text-[15px] font-semibold ${extrato ? "bg-ink text-white" : "text-ink-2"}`}>Conta corrente</span>
+      </div>
+      <div className="mx-3 mb-3 rounded-[20px] bg-surface p-4 lg:mx-0">
+        <Bone className="block h-8 w-60 rounded-full" />
+        <Bone className="mt-3 block h-10 w-52 rounded-full" />
+        <TextBone size={13} w="w-64" className="mt-2" />
+      </div>
+      <div className="mx-3 rounded-[20px] bg-surface p-4 lg:mx-0">
+        <TextBone size={19} w="w-44" />
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[0, 1, 2].map((i) => (
+            <Bone key={i} className="h-14 rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    </SkeletonScreen>
+  );
+}
+
 /** Skeleton de uma tela inteira, pelo endereço (página) ou pelo destino de uma navegação. */
 export function RouteSkeleton({ route, url }: { route: RouteKey; url?: URL }) {
   switch (route) {
@@ -1347,6 +1377,8 @@ export function RouteSkeleton({ route, url }: { route: RouteKey; url?: URL }) {
       return <ConfigFormSkeleton kind="categoria" />;
     case "config-conta":
       return <ConfigContaSkeleton />;
+    case "conferir":
+      return <ConferirSkeleton url={url} />;
     case "novo":
       return <QuickAddSkeleton mode="page" url={url} />;
     case "lancamento":

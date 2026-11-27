@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { startNavigation, usePendingNav } from "@/components/NavState";
-import { INVEST_ICON, TARGET_ICON } from "@/components/PageHeaders";
+import { CONFERIR_ICON, INVEST_ICON, TARGET_ICON } from "@/components/PageHeaders";
 
 const STATS_ICON = "M4 20h16M7 16v-5M12 16V6M17 16v-8";
 
@@ -13,6 +13,8 @@ const STATS_ICON = "M4 20h16M7 16v-5M12 16V6M17 16v-8";
 const items: { href: string; label: string; icon: string; primary?: boolean; desktopOnly?: boolean }[] = [
   { href: "/", label: "Painel", icon: "M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10" },
   { href: "/lancamentos", label: "Lançamentos", icon: "M4 6h16M4 12h16M4 18h10" },
+  // Conferir com o banco: no menu lateral; no celular, no cabeçalho do Painel
+  { href: "/conferir", label: "Conferir", desktopOnly: true, icon: CONFERIR_ICON },
   { href: "/novo", label: "Lançar", icon: "M12 5v14M5 12h14", primary: true },
   { href: "/fixos", label: "Fixos", icon: "M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" },
   // Metas: no menu lateral; no celular, no cabeçalho e no cartão do Painel (a barra continua com 5 lugares)
@@ -24,7 +26,7 @@ const items: { href: string; label: string; icon: string; primary?: boolean; des
 ];
 
 // Telas que não dependem do mês: o link não leva o ?m=
-const NO_MONTH = new Set(["/configuracoes", "/estatisticas", "/investimentos"]);
+const NO_MONTH = new Set(["/configuracoes", "/estatisticas", "/investimentos", "/conferir"]);
 
 function useNav() {
   const pathname = usePathname();

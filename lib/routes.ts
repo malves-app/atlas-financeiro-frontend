@@ -25,6 +25,7 @@ export type RouteKey =
   | "config-categoria-nova"
   | "config-categoria"
   | "config-conta"
+  | "conferir"
   | "novo";
 
 const ROUTES: [RegExp, RouteKey][] = [
@@ -51,6 +52,7 @@ const ROUTES: [RegExp, RouteKey][] = [
   [/^\/configuracoes\/categorias\/nova\/?$/, "config-categoria-nova"],
   [/^\/configuracoes\/categorias\/\d+\/?$/, "config-categoria"],
   [/^\/configuracoes\/conta\/?$/, "config-conta"],
+  [/^\/conferir\/?$/, "conferir"],
   [/^\/novo\/?$/, "novo"],
 ];
 

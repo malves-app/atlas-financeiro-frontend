@@ -126,6 +126,34 @@ Os fixos de **novembro** viram os fixos que o site repete nos meses seguintes (a
 em 2027). O importador confere os totais de cada mês (gastos, fixos, cartão, entradas, saldo e cada linha de Saídas) com
 os que a própria planilha mostra.
 
+## Conferir com o banco
+
+Em **Conferir** (menu lateral no computador; no celular, o ícone de documento no topo do Painel) você envia o arquivo do
+banco e o site mostra só o que não bate com o Atlas. Cada item já vem com a correção sugerida (lançar com nome e
+categoria, corrigir o valor, mover de mês, mudar a forma de pagamento, marcar como paga, excluir): é só **Aprovar** ou
+**Recusar**. **Aprovar as N sugestões** aprova de uma vez as seguras (nunca exclui nem lança em categoria não
+reconhecida, que aparece como "Outros · confira").
+
+Por enquanto só o **Santander**:
+
+- **Fatura do cartão**: o PDF que o app do Santander gera quando a fatura fecha. Os cartões da fatura (titular,
+  adicional e virtuais) entram na mesma forma de pagamento. A fatura vale para o mês do fechamento. Parcelas novas viram
+  compra parcelada a partir daquela fatura; estornos entram com valor negativo; compras depois do fechamento vão para o
+  mês seguinte.
+- **Extrato da conta corrente**: o CSV do internet banking, de qualquer período. Pix, TED, boletos e débitos são
+  comparados com os lançamentos e fixos das formas de conta corrente; as entradas, com Lançamentos → Entradas.
+  Aplicações, resgates, pagamento da fatura e transferências entre contas suas ficam de fora.
+
+Nome e categoria sugeridos (`lib/statements/suggest.ts`), nesta ordem: como aquela linha do banco foi lançada antes
+(aprovada aqui ou um lançamento que bateu com ela, guardado em `statement_rules`), um lançamento com o mesmo nome, o nome
+da loja (posto → Combustível, iFood → Delivery, Netflix → Streaming...) ligado às **suas** categorias, e por último
+"Outros". Mudar a categoria antes de aprovar ensina: na próxima fatura, a mesma linha já vem certa.
+
+Outro banco = um leitor novo em `lib/statements/` que devolve a mesma fatura/extrato (`types.ts`) e uma entrada em
+`lib/statements/banks.ts`. Os arquivos são lidos no servidor e só as linhas lidas ficam salvas (`statement_imports`,
+protegida por RLS). Depois de baixar esta versão, rode `npm install` (instala o `pdfjs-dist`) e aplique as migrações
+`20261127000000_statement_imports.sql` e `20261127120000_statement_rules.sql`.
+
 ## Comandos
 
 - `npm run dev`: desenvolvimento
@@ -147,4 +175,6 @@ os que a própria planilha mostra.
 - `lib/data.ts`: consultas e regras (totais do mês, fixos recorrentes, parcelas)
 - `lib/stats.ts`: estatísticas do ano ou dos últimos 12 meses (médias, tendência, rankings)
 - `lib/import/`: leitura das abas da planilha e carga no banco
+- `lib/statements/`: Conferir com o banco: leitores por banco (`santander.ts`, registrados em `banks.ts`), comparação com o
+  Atlas (`compare.ts`), sugestão de nome e categoria (`suggest.ts`) e correções (`data.ts`)
 - `supabase/migrations/`: tabelas, regras de segurança e funções do banco
